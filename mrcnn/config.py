@@ -187,7 +187,7 @@ class Config(object):
     #     True: (don't use). Set layer in training mode even when inferencing
     TRAIN_BN = False  # Defaulting to False since batch size is often small
 
-    # Gradient norm clipping
+    # Gradient norm clipping, refer: https://hackernoon.com/gradient-clipping-57f04f0adae
     GRADIENT_CLIP_NORM = 5.0
 
     def __init__(self):
@@ -201,7 +201,7 @@ class Config(object):
         else:
             self.IMAGE_SHAPE = np.array([self.IMAGE_MAX_DIM, self.IMAGE_MAX_DIM, 3])
 
-        # Image meta data length
+        # Image meta data length : questions?
         # See compose_image_meta() for details
         self.IMAGE_META_SIZE = 1 + 3 + 3 + 4 + 1 + self.NUM_CLASSES
 
