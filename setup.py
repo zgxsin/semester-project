@@ -12,24 +12,30 @@ try:
 except ImportError:
     from distutils.core import setup
 
+# try: # for pip >= 10
+#     from pip._internal.req import parse_requirements
+# except ImportError: # for pip <= 9.0.3
+#     from pip.req import parse_requirements
+
 
 def _parse_requirements(file_path):
     pip_ver = pkg_resources.get_distribution('pip').version
     pip_version = list(map(int, pip_ver.split('.')[:2]))
     if pip_version >= [6, 0]:
-        raw = pip.req.parse_requirements(file_path,
+        raw = parse_requirements(file_path,
                                          session=pip.download.PipSession())
     else:
-        raw = pip.req.parse_requirements(file_path)
+        raw = parse_requirements(file_path)
     return [str(i.req) for i in raw]
 
 
 # parse_requirements() returns generator of pip.req.InstallRequirement objects
-try:
-    install_reqs = _parse_requirements("requirements.txt")
-except Exception:
-    logging.warning('Fail load requirements file, so using default ones.')
-    install_reqs = []
+# try:
+#     install_reqs = _parse_requirements("requirements.txt")
+# except Exception:
+#     logging.warning('Fail load requirements file, so using default ones.')
+#     install_reqs = []
+install_reqs = _parse_requirements("requirements.txt")
 
 setup(
     name='mask-rcnn',
