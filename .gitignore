@@ -60,7 +60,6 @@ ENV/
 # images
 images/
 trained_logs/
-assets/
 setup.cfg
 test.py
 
