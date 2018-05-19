@@ -56,3 +56,11 @@ pip-delete-this-directory.txt
 .venv
 venv/
 ENV/
+
+# images
+images/
+trained_logs/
+assets/
+setup.cfg
+test.py
+
