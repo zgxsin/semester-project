@@ -65,8 +65,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2
-
+    IMAGES_PER_GPU = 3
+    GPU_COUNT = 4
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -74,7 +74,7 @@ class CarlaConfig(Config):
     STEPS_PER_EPOCH = 100
 
     # Skip detections with < 90% confidence
-    DETECTION_MIN_CONFIDENCE = 0.9 #
+    DETECTION_MIN_CONFIDENCE = 0.7 #
 
 
 ############################################################

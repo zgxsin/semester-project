@@ -62,4 +62,6 @@ images/
 trained_logs/
 setup.cfg
 test.py
-
+samples/
+dataset/
+!calar/
