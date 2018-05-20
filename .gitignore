@@ -61,7 +61,7 @@ ENV/
 images/
 trained_logs/
 setup.cfg
-test.py
+samples/carla/test.py
 samples/
 dataset/
 !calar/

@@ -35,6 +35,7 @@ import numpy as np
 import skimage.draw
 from os import listdir
 from os.path import isfile, join
+import cv2
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -65,8 +66,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 3
-    GPU_COUNT = 4
+    IMAGES_PER_GPU = 2
+    GPU_COUNT = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -74,7 +75,7 @@ class CarlaConfig(Config):
     STEPS_PER_EPOCH = 100
 
     # Skip detections with < 90% confidence
-    DETECTION_MIN_CONFIDENCE = 0.7 #
+    DETECTION_MIN_CONFIDENCE = 0.7
 
 
 ############################################################
@@ -89,7 +90,7 @@ class CarlaDataset(utils.Dataset):
         subset: Subset to load: train or val
         """
         # Add classes. We have only one class to add.
-        self.add_class("carla", 1, "dynamic")
+        self.add_class("carla", 1, "Dynamic")
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
@@ -106,12 +107,32 @@ class CarlaDataset(utils.Dataset):
             mask_temp = skimage.io.imread(os.path.join(mask_path, filename), as_grey=True)
             # mask has to be bool type
             mask_temp = mask_temp > 0
+            mask_temp = np.asarray(mask_temp, np.uint8)
+            masks = []
+            # extract instances masks from one single mask of the image
+            connectivity = 8
+            # Perform the operation
+            output = cv2.connectedComponents(mask_temp, connectivity, cv2.CV_32S)
+            # Get the results
+            # The first cell is the number of labels
+            num_labels = output[0]
+            labels = output[1]
+            # number of mask instances: count
+            count = 0
+            # zero represent the background, strat from 1
+            for i in range(1, num_labels):
+                # robust to noise, the instance region mush has more than 10 pixels
+                if np.sum(labels == i) >= 20:
+                    masks.append((labels == i))
+                    count = count + 1
+            # todo: what is masks is empty?
+            masks = np.asarray(masks)
             self.add_image(
                 "carla",
                 image_id=filename,  # use file name as a unique image id
                 path=image_path,
                 width=width, height=height,
-                polygons=mask_temp)
+                polygons=masks)
 
     def load_mask(self, image_id):
         """Generate instance masks for an image.
@@ -128,7 +149,9 @@ class CarlaDataset(utils.Dataset):
         # Convert polygons to a bitmap mask of shape
         # [height, width, instance_count]
         info = self.image_info[image_id]
-        mask = info["polygons"].reshape(info["height"], info["width"], 1)
+        # mask = info["polygons"].reshape(info["height"], info["width"], -1)
+        mask_accu = info["polygons"]
+        mask = np.empty(shape=(info["height"], info["width"], mask_accu.shape[0]), dtype=np.bool)
         # mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
         #                 dtype=np.uint8)
         # for i, p in enumerate(info["polygons"]):
@@ -138,7 +161,13 @@ class CarlaDataset(utils.Dataset):
 
         # Return mask, and array of class IDs of each instance. Since we have
         # one class ID only, we return an array of 1s
-        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+        for i in range(mask_accu.shape[0]):
+            mask[:,:,i] = mask_accu[i,:,:]
+
+        if mask is not None:
+            return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+        else:
+            return mask.astype(np.bool), np.empty([0], np.int32)
 
     def image_reference(self, image_id):
         """Return the path of the image."""
