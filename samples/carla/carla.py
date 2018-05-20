@@ -38,6 +38,8 @@ from os.path import isfile, join
 import cv2
 # import os
 import tarfile
+import shutil
+
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -68,8 +70,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2
-    GPU_COUNT = 1
+    IMAGES_PER_GPU = 3
+    GPU_COUNT = 4
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -100,7 +102,7 @@ class CarlaDataset(utils.Dataset):
         dataset_dir = os.path.join(dataset_dir, subset)
 
         # mypath = "/Users/zhou/Downloads/MyDocuments/Imaga_DataSet_Training/0_100/Dynamic/dataset/train_mask/"
-        mask_path = os.path.join(dataset_dir_origin, "Mask")
+        mask_path = os.path.join(dataset_dir, "Mask")
 
         ##############
         # copy data in the original direcotry to /scratch/zgxsin/dataset/
@@ -108,6 +110,8 @@ class CarlaDataset(utils.Dataset):
         ## oringal val data: /cluster/work/riner/users/zgxsin/semester_project/dataset/val
         ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
         #############
+        # delete the directory first
+        shutil.rmtree("/scratch/zgxsin")
         directory = ["/scratch/zgxsin/dataset/train/",
                     "/scratch/zgxsin/dataset/val/"]
         for i in range(len( directory)):
@@ -134,7 +138,7 @@ class CarlaDataset(utils.Dataset):
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
 
         for i, filename in enumerate(mask_list):
-            image_path = os.path.join(dataset_dir,filename)
+            image_path = os.path.join(dataset_dir,"RGB",filename)
             image = skimage.io.imread(image_path)
             height, width = image.shape[:2]
             mask_temp = skimage.io.imread(os.path.join(mask_path, filename), as_grey=True)
