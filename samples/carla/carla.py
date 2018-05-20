@@ -36,6 +36,8 @@ import skimage.draw
 from os import listdir
 from os.path import isfile, join
 import cv2
+# import os
+import tarfile
 
 # Root directory of the project
 ROOT_DIR = os.path.abspath("../../")
@@ -98,8 +100,39 @@ class CarlaDataset(utils.Dataset):
         dataset_dir = os.path.join(dataset_dir, subset)
 
         # mypath = "/Users/zhou/Downloads/MyDocuments/Imaga_DataSet_Training/0_100/Dynamic/dataset/train_mask/"
-        mask_path = os.path.join(dataset_dir_origin, "train_mask")
+        mask_path = os.path.join(dataset_dir_origin, "Mask")
+
+        ##############
+        # copy data in the original direcotry to /scratch/zgxsin/dataset/
+        ## orignal training data: /cluster/work/riner/users/zgxsin/semester_project/dataset/train
+        ## oringal val data: /cluster/work/riner/users/zgxsin/semester_project/dataset/val
+        ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
+        #############
+        directory = ["/scratch/zgxsin/dataset/train/",
+                    "/scratch/zgxsin/dataset/val/"]
+        for i in range(len( directory)):
+            if not os.path.exists(directory[i]):
+                os.makedirs(directory[i])
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
+            tar.extractall(path=directory[0])
+            tar.close()
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
+            tar.extractall(path=directory[0])
+            tar.close()
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
+            tar.extractall(path=directory[1])
+            tar.close()
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
+            tar.extractall(path=directory[1])
+            tar.close()
+
+        #############
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
+
         for i, filename in enumerate(mask_list):
             image_path = os.path.join(dataset_dir,filename)
             image = skimage.io.imread(image_path)
@@ -197,7 +230,7 @@ def train(model):
     print("Training network heads")
     model.train(dataset_train, dataset_val,
                 learning_rate=config.LEARNING_RATE,
-                epochs=30,
+                epochs=20,
                 layers='heads')
 
 ############################################################
