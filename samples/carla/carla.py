@@ -102,8 +102,10 @@ class CarlaDataset(utils.Dataset):
         dataset_dir = os.path.join(dataset_dir, subset)
 
         # mypath = "/Users/zhou/Downloads/MyDocuments/Imaga_DataSet_Training/0_100/Dynamic/dataset/train_mask/"
-        mask_path = os.path.join(dataset_dir, "Mask")
+        # mask_path = os.path.join(dataset_dir, "Mask")
 
+        # for local use, should be deleted later
+        mask_path = os.path.join(dataset_dir, "Mask" )
         ##############
         # copy data in the original direcotry to /scratch/zgxsin/dataset/
         ## orignal training data: /cluster/work/riner/users/zgxsin/semester_project/dataset/train
