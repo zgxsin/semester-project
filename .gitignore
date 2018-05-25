@@ -61,7 +61,7 @@ ENV/
 images/
 trained_logs/
 setup.cfg
-samples/carla/test.py
 samples/
+!samples/demo.ipynb
 dataset/
-!calar/
+!samples/carla/
