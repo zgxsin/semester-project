@@ -102,8 +102,10 @@ class CarlaDataset(utils.Dataset):
         dataset_dir = os.path.join(dataset_dir, subset)
 
         # mypath = "/Users/zhou/Downloads/MyDocuments/Imaga_DataSet_Training/0_100/Dynamic/dataset/train_mask/"
-        mask_path = os.path.join(dataset_dir, "Mask")
+        # mask_path = os.path.join(dataset_dir, "Mask")
 
+        # for local use, should be deleted later
+        mask_path = os.path.join(dataset_dir, "Mask" )
         ##############
         # copy data in the original direcotry to /scratch/zgxsin/dataset/
         ## orignal training data: /cluster/work/riner/users/zgxsin/semester_project/dataset/train
@@ -111,28 +113,29 @@ class CarlaDataset(utils.Dataset):
         ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
         #############
         # delete the directory first
-        shutil.rmtree("/scratch/zgxsin")
-        directory = ["/scratch/zgxsin/dataset/train/",
-                    "/scratch/zgxsin/dataset/val/"]
-        for i in range(len( directory)):
-            if not os.path.exists(directory[i]):
-                os.makedirs(directory[i])
-
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-            tar.extractall(path=directory[0])
-            tar.close()
-
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-            tar.extractall(path=directory[0])
-            tar.close()
-
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
-            tar.extractall(path=directory[1])
-            tar.close()
-
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
-            tar.extractall(path=directory[1])
-            tar.close()
+        # if os.path.exists("/scratch/zgxsin"):
+        #     shutil.rmtree("/scratch/zgxsin")
+        # directory = ["/scratch/zgxsin/dataset/train/",
+        #             "/scratch/zgxsin/dataset/val/"]
+        # for i in range(len( directory)):
+        #     if not os.path.exists(directory[i]):
+        #         os.makedirs(directory[i])
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[0])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[0])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[1])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[1])
+        #     tar.close()
 
         #############
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
@@ -218,6 +221,9 @@ class CarlaDataset(utils.Dataset):
 def train(model):
     """Train the model."""
     # Training dataset.
+    # to handle broken pipe error
+    from signal import signal, SIGPIPE, SIG_DFL
+    signal( SIGPIPE, SIG_DFL )
     dataset_train = CarlaDataset()
     dataset_train.load_carla(args.dataset, "train")
     dataset_train.prepare()
@@ -236,7 +242,9 @@ def train(model):
                 learning_rate=config.LEARNING_RATE,
                 epochs=20,
                 layers='heads')
-
+    ##after training, delete the temp directory
+    if os.path.exists("/scratch/zgxsin" ):
+        shutil.rmtree( "/scratch/zgxsin" )
 ############################################################
 #  Training
 ############################################################
