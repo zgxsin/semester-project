@@ -61,6 +61,6 @@ ENV/
 images/
 trained_logs/
 setup.cfg
-
+!samples/demo.ipynb
 dataset/
 !samples/carla/
