@@ -142,6 +142,7 @@ class CarlaDataset(utils.Dataset):
             try:
                 image = skimage.io.imread(image_path)
             except:
+                print(image_path)
                 continue
             height, width = image.shape[:2]
             mask_temp = skimage.io.imread(os.path.join(mask_path, filename), as_grey=True)
