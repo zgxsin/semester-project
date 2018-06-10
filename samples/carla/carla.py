@@ -38,6 +38,7 @@ import cv2
 # import os
 import tarfile
 import shutil
+from PIL import Image
 
 
 # Root directory of the project
@@ -240,8 +241,9 @@ class ZurichDataset(utils.Dataset):
             if count_frame % sample_rate == 0:
                 # the resize function can be ignored later
                 # prev = cv.resize(prev, (800, 800))
-                image_origin_list.append(prev)
-                prevgray = cv2.cvtColor( prev, cv2.COLOR_BGR2GRAY )
+                # add as RGB format
+                image_origin_list.append(cv2.cvtColor(prev, cv2.COLOR_BGR2RGB))
+                prevgray = cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY )
 
                 if preprosessing:
                     image = clahe.apply( prevgray )
@@ -254,7 +256,7 @@ class ZurichDataset(utils.Dataset):
                 # image_stat= clahe.apply(image_stat)
                 index = index + 1
         # change to np.float32, so that i will not overflow when doing subtraction
-        return np.asarray( image_list, np.float32 ), image_origin_list
+        return np.asarray(image_list, np.float32), image_origin_list
 
     def calculate_image_mask(self,target_index, image_array, threshold_rate):
         while (True):
@@ -324,6 +326,38 @@ class ZurichDataset(utils.Dataset):
                 count = count + 1
         return count, np.asarray(connect_components, dtype=bool)
 
+    def save_image(self, filename, target_index, image, mask, directory, subset):
+        '''
+
+        :param self:
+        :param image:
+        :param mask:
+        :param directory: directory to save video images
+        :return:
+        '''
+        # delete the directory first
+        image = Image.fromarray(image)
+        if os.path.exists( directory ):
+            shutil.rmtree( directory )
+        directory = [os.path.join( directory, "train" ),
+                     os.path.join( directory, "val" )]
+
+        for i in range(len( directory ) ):
+            if not os.path.exists( directory[i] ):
+                os.makedirs( directory[i] )
+
+        j = 0 if subset == "train" else 1
+        image.save(os.path.join(directory[j], filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
+
+        # np.uint8 is important. otherwise may cause error
+        mask = mask.astype(np.uint8)
+        for n in range(mask.shape[0]):
+            binary_image = cv2.cvtColor(mask[n], cv2.COLOR_GRAY2BGR)*255
+            mask_image = Image.fromarray(binary_image)
+            mask_image.save(os.path.join(directory[j],filename.split('.')[0] + "__Frame" + str(target_index) + "__CC" + str(n) +'.png'))
+
+
+
 
     def load_zurich(self, dataset_dir, subset):
         """Load a subset of the Balloon dataset.
@@ -341,14 +375,14 @@ class ZurichDataset(utils.Dataset):
         video_list = [f for f in listdir(dataset_dir) if isfile(join(dataset_dir, f ))]
 
         for i, filename in enumerate( video_list ):
-            video_path = os.path.join( dataset_dir, filename )
+            video_path = os.path.join(dataset_dir, filename)
             image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
             # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
             sample_frame_array = np.asarray( range( image_array.shape[0]) )
+            # remove first 5 frames and last 5 frames to be robust to noise
+            target_indexs = sample_frame_array[5:image_array.shape[0]- 5:10]
 
-            # target_indexs = sample_frame_array[0:image_array.shape[0]:5]
-
-            target_indexs = [20]
+            # target_indexs = [20]
             for target_index in target_indexs:
                 # image_origin_list is RGB image
                 height, width = image_origin_list[target_index].shape[:2]
@@ -367,6 +401,7 @@ class ZurichDataset(utils.Dataset):
                 output1 = cv2.connectedComponents( input1, connectivity, cv2.CV_32S )
                 _, final_connected_components_bool_array= self.show_final_mask( target_index, output1[0], output1[1], iter=5, kernel_size=6, show=True )
 
+                self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, directory="/Users/zhou/Desktop/hh", subset=subset)
                 self.add_image(
                     "zurich",
                     image_id=os.path.join( filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
@@ -374,38 +409,6 @@ class ZurichDataset(utils.Dataset):
                     width=width, height=height,
                     polygons=final_connected_components_bool_array)
 
-        ##############
-        # copy data in the original direcotry to /scratch/zgxsin/dataset/
-        ## orignal training data: /cluster/work/riner/users/zgxsin/semester_project/dataset/train
-        ## oringal val data: /cluster/work/riner/users/zgxsin/semester_project/dataset/val
-        ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
-        #############
-        # delete the directory first
-        # if os.path.exists("/scratch/zgxsin"):
-        #     shutil.rmtree("/scratch/zgxsin")
-        # directory = ["/scratch/zgxsin/dataset/train/",
-        #             "/scratch/zgxsin/dataset/val/"]
-        # for i in range(len( directory)):
-        #     if not os.path.exists(directory[i]):
-        #         os.makedirs(directory[i])
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[0])
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[0])
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[1])
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[1])
-        #     tar.close()
-
-        #############
 
     def load_mask(self, image_id):
         """Generate instance masks for an image.
