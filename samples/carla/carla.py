@@ -70,8 +70,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 4
-    GPU_COUNT = 1
+    IMAGES_PER_GPU = 3
+    GPU_COUNT = 4
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -110,19 +110,19 @@ class CarlaDataset(utils.Dataset):
         #############
         # delete the directory first
 
+        #  unzip_directory = "/scratch/zgxsin/dataset"
+        directory = os.path.join(unzip_directory, subset)
 
-        # directory = os.path.join(unzip_directory, subset)
-        #
-        # if not os.path.exists(directory):
-        #     os.makedirs(directory)
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory)
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory)
-        #     tar.close()
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
+            tar.extractall(path=directory)
+            tar.close()
+
+        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
+            tar.extractall(path=directory)
+            tar.close()
 
         #############
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
@@ -208,14 +208,13 @@ class ZurichDataset(utils.Dataset):
 
     def read_video(self, directory, sample_rate, preprosessing):
         '''
-
         :param directory: the video path
         :param sample_rate: sample one frame every "sample_rate" frame in the original video
         :param preprosessing: whether or not to apply histogram equalization and gaussian blur
         :return:
         '''
 
-        cam = cv2.VideoCapture( directory )
+        cam = cv2.VideoCapture(directory)
         count_frame = 0
         clahe = cv2.createCLAHE( clipLimit=3, tileGridSize=(4, 4) )
         index = 0
@@ -248,23 +247,22 @@ class ZurichDataset(utils.Dataset):
         return np.asarray(image_list, np.float32), image_origin_list
 
     def calculate_image_mask(self,target_index, image_array, threshold_rate):
-        while (True):
-            image_diff = np.subtract( image_array[target_index, :, :], image_array )
-            diff_image_array = np.abs( image_diff )
-            diff_image_array = diff_image_array.tolist()
-            del diff_image_array[target_index]
-            diff_image_array = np.asarray( diff_image_array )
-            # threshold the difference image.
-            image_mean = np.mean( diff_image_array, axis=(1, 2), dtype=np.float32 )
-            image_std = np.std( diff_image_array, axis=(1, 2), dtype=np.float32 )
-            threshold_image_list = [diff_image_array[i, :, :] >= image_mean[i] + image_std[i] for i in
-                                    range( diff_image_array.shape[0] )]
-            threshold_image_array = np.asarray( threshold_image_list )
-            sum_diff_image = np.sum( threshold_image_array, axis=0 )
-            # max_value = sum_diff_image.max()
-            threshold_sum_diff = (sum_diff_image >= threshold_rate * threshold_image_array.shape[0])
-            threshold_sum_diff = threshold_sum_diff.astype( np.uint8 )
-            return sum_diff_image, threshold_sum_diff
+        image_diff = np.subtract( image_array[target_index, :, :], image_array )
+        diff_image_array = np.abs( image_diff )
+        diff_image_array = diff_image_array.tolist()
+        del diff_image_array[target_index]
+        diff_image_array = np.asarray( diff_image_array )
+        # threshold the difference image.
+        image_mean = np.mean( diff_image_array, axis=(1, 2), dtype=np.float32 )
+        image_std = np.std( diff_image_array, axis=(1, 2), dtype=np.float32 )
+        threshold_image_list = [diff_image_array[i, :, :] >= image_mean[i] + image_std[i] for i in
+                                range( diff_image_array.shape[0] )]
+        threshold_image_array = np.asarray( threshold_image_list )
+        sum_diff_image = np.sum( threshold_image_array, axis=0 )
+        # max_value = sum_diff_image.max()
+        threshold_sum_diff = (sum_diff_image >= threshold_rate * threshold_image_array.shape[0])
+        threshold_sum_diff = threshold_sum_diff.astype( np.uint8 )
+        return sum_diff_image, threshold_sum_diff
 
 
 
@@ -336,7 +334,6 @@ class ZurichDataset(utils.Dataset):
 
 
 
-
     def load_zurich(self, dataset_dir, subset, save_bool = False, save_directory= None):
         """Load a subset of the Balloon dataset.
         dataset_dir: Root directory of the dataset.
@@ -362,19 +359,19 @@ class ZurichDataset(utils.Dataset):
             # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
             sample_frame_array = np.asarray( range( image_array.shape[0]) )
             # remove first 5 frames and last 5 frames to be robust to noise
-            target_indexs = sample_frame_array[5:image_array.shape[0]- 5:20]
+            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
 
             # target_indexs = [20]
             for target_index in target_indexs:
                 # image_origin_list is RGB image
                 height, width = image_origin_list[target_index].shape[:2]
-                sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7 )
+                sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7)
                 num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff )
 
                 # display_process( target_index, image_origin_list, sum_diff_image, threshold_sum_diff, closing )
 
-                _, connect_components = self.show_final_mask( target_index, num_labels, labels, iter=5, kernel_size=6,
-                                                         show=False )
+                _, connect_components = self.show_final_mask(target_index, num_labels, labels, iter=5, kernel_size=6,
+                                                             show=False)
 
                 connect_components_array = np.asarray( connect_components, np.int32 )
                 input1 = np.asarray( np.sum( connect_components_array, 0 ) > 0, np.uint8 )
@@ -386,7 +383,7 @@ class ZurichDataset(utils.Dataset):
                     self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, save_directory=extend_save_directory)
                 self.add_image(
                     "zurich",
-                    image_id=os.path.join( filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
+                    image_id=os.path.join(filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
                     path=image_origin_list[target_index],
                     width=width, height=height,
                     polygons=final_connected_components_bool_array)
@@ -461,7 +458,8 @@ def train(model):
         shutil.rmtree( unzip_directory )
 
     # video clip directory
-    video_clip_directory = "/Users/zhou/Desktop/video_clip"
+    # /cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar
+    video_clip_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_clip"
 
 
 
