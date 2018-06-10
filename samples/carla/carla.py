@@ -65,7 +65,7 @@ class CarlaConfig(Config):
     Derives from the base Config class and overrides some values.
     """
     # Give the configuration a recognizable name
-    NAME = "carla"
+    NAME = "carla_zurich"
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
@@ -215,6 +215,246 @@ class CarlaDataset(utils.Dataset):
             super(self.__class__, self).image_reference(image_id)
 
 
+class ZurichDataset(utils.Dataset):
+
+    def read_video(self, directory, sample_rate, preprosessing):
+        '''
+
+        :param directory: the video path
+        :param sample_rate: sample one frame every "sample_rate" frame in the original video
+        :param preprosessing: whether or not to apply histogram equalization and gaussian blur
+        :return:
+        '''
+
+        cam = cv2.VideoCapture( directory )
+        count_frame = 0
+        clahe = cv2.createCLAHE( clipLimit=3, tileGridSize=(4, 4) )
+        index = 0
+
+        image_list = []
+        image_origin_list = []
+        while True:
+            ret, prev = cam.read()
+            if not ret:
+                break
+            count_frame = count_frame + 1
+            if count_frame % sample_rate == 0:
+                # the resize function can be ignored later
+                # prev = cv.resize(prev, (800, 800))
+                image_origin_list.append(prev)
+                prevgray = cv2.cvtColor( prev, cv2.COLOR_BGR2GRAY )
+
+                if preprosessing:
+                    image = clahe.apply( prevgray )
+                    # using Gaussian Blur is not good, tested
+                    image = cv2.GaussianBlur(image, (5, 5), 1 )
+                else:
+                    image = prevgray
+                image_list.append(image)
+
+                # image_stat= clahe.apply(image_stat)
+                index = index + 1
+        # change to np.float32, so that i will not overflow when doing subtraction
+        return np.asarray( image_list, np.float32 ), image_origin_list
+
+    def calculate_image_mask(self,target_index, image_array, threshold_rate):
+        while (True):
+            image_diff = np.subtract( image_array[target_index, :, :], image_array )
+            diff_image_array = np.abs( image_diff )
+            diff_image_array = diff_image_array.tolist()
+            del diff_image_array[target_index]
+            diff_image_array = np.asarray( diff_image_array )
+            # threshold the difference image.
+            image_mean = np.mean( diff_image_array, axis=(1, 2), dtype=np.float32 )
+            image_std = np.std( diff_image_array, axis=(1, 2), dtype=np.float32 )
+            threshold_image_list = [diff_image_array[i, :, :] >= image_mean[i] + image_std[i] for i in
+                                    range( diff_image_array.shape[0] )]
+            threshold_image_array = np.asarray( threshold_image_list )
+            sum_diff_image = np.sum( threshold_image_array, axis=0 )
+            # max_value = sum_diff_image.max()
+            threshold_sum_diff = (sum_diff_image >= threshold_rate * threshold_image_array.shape[0])
+            threshold_sum_diff = threshold_sum_diff.astype( np.uint8 )
+            return sum_diff_image, threshold_sum_diff
+
+
+
+    def morphlogical_process(self, threshold_sum_diff):
+        # apply morphlogical operation
+        kernel = np.ones( (4, 4), np.uint8 )
+        kernel1 = np.ones( (2, 2), np.uint8 )
+        # suppress noise using opening (erosion + dilation)
+        opening = cv2.morphologyEx( threshold_sum_diff, cv2.MORPH_OPEN, kernel1, iterations=1 )
+        # fill the holes in forground (closing)
+        closing = cv2.morphologyEx( opening, cv2.MORPH_CLOSE, kernel, iterations=3 )
+        # draw connected component
+        src = closing
+        src = np.asarray( src, np.uint8 )
+        connectivity = 8
+        # Perform the operation
+        output = cv2.connectedComponents( src, connectivity, cv2.CV_32S )
+        # Get the results
+        # The first cell is the number of labels
+        num_labels = output[0]
+        labels = output[1]
+        return num_labels, labels, closing
+
+
+    def show_final_mask(self, target_index, num_labels, labels, iter, kernel_size, show):
+        kernel = np.ones( (kernel_size, kernel_size), np.uint8 )
+        count = 0
+        connect_components = []
+
+        for i in range( 1, num_labels ):
+            # robust to noise
+            if np.sum( labels == i ) >= 300:
+
+                temp = labels == i
+                temp = np.asarray( temp, dtype=np.uint8 )
+
+                # component_after_closing = cv2.morphologyEx(temp, cv2.MORPH_CLOSE, kernel, iterations=4)
+                if not show:
+                    component_after_closing = cv2.morphologyEx( temp, cv2.MORPH_DILATE, kernel, iterations=iter )
+                else:
+                    # plt.figure( "Sample Frame " + str( target_index ) + ": Connected Components " + str( count + 1 ) )
+                    # plt.title( "Sample Frame " + str( target_index ) + ": Connected Components " + str( count + 1 ) )
+                    component_after_closing = cv2.morphologyEx( temp, cv2.MORPH_ERODE, kernel, iterations=iter )
+                    # plt.imshow( component_after_closing, 'gray' )
+                    # print( "The Number of Pixels in Component {0} is {1}".format( count + 1, np.sum( temp ) ) )
+                connect_components.append( component_after_closing )
+
+                count = count + 1
+        return count, np.asarray(connect_components, dtype=bool)
+
+
+    def load_zurich(self, dataset_dir, subset):
+        """Load a subset of the Balloon dataset.
+        dataset_dir: Root directory of the dataset.
+        subset: Subset to load: train or val
+        """
+        # Add classes. We have only one class to add.
+        self.add_class("zurich", 1, "Dynamic")
+
+        # Train or validation dataset?
+        assert subset in ["train", "val"]
+        # dataset_dir_origin = dataset_dir
+        dataset_dir = os.path.join(dataset_dir, subset)
+
+        video_list = [f for f in listdir(dataset_dir) if isfile(join(dataset_dir, f ))]
+
+        for i, filename in enumerate( video_list ):
+            video_path = os.path.join( dataset_dir, filename )
+            image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
+            # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
+            sample_frame_array = np.asarray( range( image_array.shape[0]) )
+
+            # target_indexs = sample_frame_array[0:image_array.shape[0]:5]
+
+            target_indexs = [20]
+            for target_index in target_indexs:
+                # image_origin_list is RGB image
+                height, width = image_origin_list[target_index].shape[:2]
+                sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7 )
+                num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff )
+
+                # display_process( target_index, image_origin_list, sum_diff_image, threshold_sum_diff, closing )
+
+                _, connect_components = self.show_final_mask( target_index, num_labels, labels, iter=5, kernel_size=6,
+                                                         show=False )
+
+                connect_components_array = np.asarray( connect_components, np.int32 )
+                input1 = np.asarray( np.sum( connect_components_array, 0 ) > 0, np.uint8 )
+
+                connectivity = 8
+                output1 = cv2.connectedComponents( input1, connectivity, cv2.CV_32S )
+                _, final_connected_components_bool_array= self.show_final_mask( target_index, output1[0], output1[1], iter=5, kernel_size=6, show=True )
+
+                self.add_image(
+                    "zurich",
+                    image_id=os.path.join( filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
+                    path=image_origin_list[target_index],
+                    width=width, height=height,
+                    polygons=final_connected_components_bool_array)
+
+        ##############
+        # copy data in the original direcotry to /scratch/zgxsin/dataset/
+        ## orignal training data: /cluster/work/riner/users/zgxsin/semester_project/dataset/train
+        ## oringal val data: /cluster/work/riner/users/zgxsin/semester_project/dataset/val
+        ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
+        #############
+        # delete the directory first
+        # if os.path.exists("/scratch/zgxsin"):
+        #     shutil.rmtree("/scratch/zgxsin")
+        # directory = ["/scratch/zgxsin/dataset/train/",
+        #             "/scratch/zgxsin/dataset/val/"]
+        # for i in range(len( directory)):
+        #     if not os.path.exists(directory[i]):
+        #         os.makedirs(directory[i])
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[0])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[0])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[1])
+        #     tar.close()
+        #
+        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
+        #     tar.extractall(path=directory[1])
+        #     tar.close()
+
+        #############
+
+    def load_mask(self, image_id):
+        """Generate instance masks for an image.
+       Returns:
+        masks: A bool array of shape [height, width, instance count] with
+            one mask per instance.
+        class_ids: a 1D array of class IDs of the instance masks.
+        """
+        # If not a balloon dataset image, delegate to parent class.
+        image_info = self.image_info[image_id]
+        if image_info["source"] != "zurich":
+            return super(self.__class__, self).load_mask(image_id)
+
+        # Convert polygons to a bitmap mask of shape
+        # [height, width, instance_count]
+        info = self.image_info[image_id]
+        # mask = info["polygons"].reshape(info["height"], info["width"], -1)
+        mask_accu = info["polygons"]
+        mask = np.empty(shape=(info["height"], info["width"], mask_accu.shape[0]), dtype=np.bool)
+        # mask = np.zeros([info["height"], info["width"], len(info["polygons"])],
+        #                 dtype=np.uint8)
+        # for i, p in enumerate(info["polygons"]):
+        #     # Get indexes of pixels inside the polygon and set them to 1
+        #     rr, cc = skimage.draw.polygon(p['all_points_y'], p['all_points_x'])
+        #     mask[rr, cc, i] = 1
+
+        # Return mask, and array of class IDs of each instance. Since we have
+        # one class ID only, we return an array of 1s
+        for i in range(mask_accu.shape[0]):
+            mask[:,:,i] = mask_accu[i,:,:]
+
+
+        return mask.astype(np.bool), np.ones([mask.shape[-1]], dtype=np.int32)
+
+
+    def image_reference(self, image_id):
+        """Return the path of the image."""
+        info = self.image_info[image_id]
+        if info["source"] == "zurich":
+            return info["path"]
+        else:
+            super(self.__class__, self).image_reference(image_id)
+
+
+
+
+
+
 def train(model):
     """Train the model."""
     # Training dataset.
@@ -225,17 +465,28 @@ def train(model):
     dataset_train.load_carla(args.dataset, "train")
     dataset_train.prepare()
 
+    dataset_train2 = ZurichDataset()
+    dataset_train2.load_zurich("/Users/zhou/Desktop/video_clip", "train" )
+    dataset_train2.prepare()
+
+    dataset_train_list = [dataset_train,dataset_train2]
+
     # Validation dataset
     dataset_val = CarlaDataset()
     dataset_val.load_carla(args.dataset, "val")
     dataset_val.prepare()
 
+    dataset_val2 = ZurichDataset()
+    dataset_val2.load_zurich("/Users/zhou/Desktop/video_clip", "val" )
+    dataset_val2.prepare()
+
+    dataset_val_list = [dataset_val, dataset_val2]
     # *** This training schedule is an example. Update to your needs ***
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
     print("Training network heads")
-    model.train(dataset_train, dataset_val,
+    model.train(dataset_train_list, dataset_val_list,
                 learning_rate=config.LEARNING_RATE,
                 epochs=20,
                 layers='heads')
