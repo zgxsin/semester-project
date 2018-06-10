@@ -81,6 +81,9 @@ class CarlaConfig(Config):
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.9
 
+    # set MINI mask shape, since tram is always rectangular.
+    MINI_MASK_SHAPE = (56, 90)
+
 
 ############################################################
 #  Dataset
@@ -88,7 +91,14 @@ class CarlaConfig(Config):
 
 class CarlaDataset(utils.Dataset):
 
-    def load_carla(self, dataset_dir, subset, unzip_directory = None):
+    def load_carla(self, dataset_dir, subset):
+        '''
+
+        :param dataset_dir: working directory: /scratch/zgxsin/dataset/; unzip orignal data to "unzip_directory" where we will be working
+        :param subset: train/val
+        :param unzip_directory:
+        :return:
+        '''
         """Load a subset of the Balloon dataset.
         dataset_dir: Root directory of the dataset.
         subset: Subset to load: train or val
@@ -110,19 +120,29 @@ class CarlaDataset(utils.Dataset):
         #############
         # delete the directory first
 
-        #  unzip_directory = "/scratch/zgxsin/dataset"
-        directory = os.path.join(unzip_directory, subset)
+        directory = dataset_dir
 
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-            tar.extractall(path=directory)
-            tar.close()
+        if subset=="train":
+            with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
+                tar.extractall(path=directory)
+                tar.close()
 
-        with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-            tar.extractall(path=directory)
-            tar.close()
+            with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
+                tar.extractall(path=directory)
+                tar.close()
+
+        if subset == "val":
+            with tarfile.open( '/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
+                tar.extractall( path=directory )
+                tar.close()
+
+            with tarfile.open( '/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
+                tar.extractall( path=directory )
+                tar.close()
+
 
         #############
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
@@ -453,7 +473,7 @@ def train(model):
 
 
     # codes for handling carla images because of Leonhard limitation
-    unzip_directory = "/scratch/zgxsin/dataset"
+    unzip_directory = args.dataset
     if os.path.exists( unzip_directory  ):
         shutil.rmtree( unzip_directory )
 
@@ -464,7 +484,7 @@ def train(model):
 
 
     dataset_train = CarlaDataset()
-    dataset_train.load_carla(args.dataset, "train", unzip_directory=unzip_directory)
+    dataset_train.load_carla(args.dataset, "train")
     dataset_train.prepare()
 
     dataset_train2 = ZurichDataset()
@@ -475,7 +495,7 @@ def train(model):
 
     # Validation dataset
     dataset_val = CarlaDataset()
-    dataset_val.load_carla(args.dataset, "val", unzip_directory=unzip_directory)
+    dataset_val.load_carla(args.dataset, "val")
     dataset_val.prepare()
 
     dataset_val2 = ZurichDataset()
@@ -492,7 +512,7 @@ def train(model):
     # default carla rate = 0.5
     model.train(dataset_train_list, dataset_val_list,
                 learning_rate=config.LEARNING_RATE,
-                epochs=20,
+                epochs=70,
                 layers='heads', carla_rate= 0.5)
 
     ##after training, delete the temp directory
