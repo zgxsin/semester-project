@@ -91,7 +91,7 @@ class CarlaConfig(Config):
 
 class CarlaDataset(utils.Dataset):
 
-    def load_carla(self, dataset_dir, subset):
+    def load_carla(self, dataset_dir, subset, original_directory):
         '''
 
         :param dataset_dir: working directory: /scratch/zgxsin/dataset/; unzip orignal data to "unzip_directory" where we will be working
@@ -108,7 +108,6 @@ class CarlaDataset(utils.Dataset):
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
-        dataset_dir_origin = dataset_dir
         dataset_dir = os.path.join(dataset_dir, subset)
         mask_path = os.path.join(dataset_dir, "Mask")
 
@@ -125,37 +124,25 @@ class CarlaDataset(utils.Dataset):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        if subset=="train":
-            with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-                tar.extractall(path=directory)
-                tar.close()
 
-            # with tarfile.open('/Users/zhou/Desktop/data/carla/train/RGB.tar', 'r' ) as tar:
-            #     tar.extractall(path=directory)
-            #     tar.close()
+        with tarfile.open(os.path.join(original_directory, subset, "RGB.tar"), 'r' ) as tar:
+            tar.extractall(path=directory)
+            tar.close()
 
 
-
-            with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-                tar.extractall(path=directory)
-                tar.close()
-
-        if subset == "val":
-            with tarfile.open( '/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
-                tar.extractall( path=directory )
-                tar.close()
-
-            with tarfile.open( '/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
-                tar.extractall( path=directory )
-                tar.close()
-
+        with tarfile.open(os.path.join(original_directory, subset, "Mask.tar"), 'r' ) as tar:
+            tar.extractall(path=directory)
+            tar.close()
 
         #############
         mask_list = [f for f in listdir(mask_path) if isfile(join(mask_path,f))]
-
+        image_counter = 0
         for i, filename in enumerate(mask_list):
             image_path = os.path.join(dataset_dir,"RGB",filename)
-            image = skimage.io.imread(image_path)
+            try:
+                image = skimage.io.imread(image_path)
+            except:
+                continue
             height, width = image.shape[:2]
             mask_temp = skimage.io.imread(os.path.join(mask_path, filename), as_grey=True)
             # mask has to be bool type
@@ -185,6 +172,10 @@ class CarlaDataset(utils.Dataset):
                 path=image_path,
                 width=width, height=height,
                 polygons=masks)
+            image_counter = image_counter+1
+
+        string = "trainging" if subset=="train" else "validation"
+        print("The number of {0} samples is {1} at CARLA Dataset".format(string, image_counter))
 
     def load_mask(self, image_id):
         """Generate instance masks for an image.
@@ -323,7 +314,7 @@ class ZurichDataset(utils.Dataset):
             if np.sum( labels == i ) >= 300:
 
                 temp = labels == i
-                temp = np.asarray( temp, dtype=np.uint8 )
+                temp = np.asarray(temp, dtype=np.uint8 )
 
                 # component_after_closing = cv2.morphologyEx(temp, cv2.MORPH_CLOSE, kernel, iterations=4)
                 if not show:
@@ -379,6 +370,7 @@ class ZurichDataset(utils.Dataset):
             extend_save_directory = os.path.join(save_directory, subset)
             os.makedirs(extend_save_directory)
 
+        image_counter = 0
         for i, filename in enumerate( video_list ):
             video_path = os.path.join(dataset_dir, filename)
             image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
@@ -388,6 +380,7 @@ class ZurichDataset(utils.Dataset):
             target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
 
             # target_indexs = [20]
+
             for target_index in target_indexs:
                 # image_origin_list is RGB image
                 height, width = image_origin_list[target_index].shape[:2]
@@ -413,6 +406,10 @@ class ZurichDataset(utils.Dataset):
                     path=image_origin_list[target_index],
                     width=width, height=height,
                     polygons=final_connected_components_bool_array)
+                image_counter = image_counter + 1
+
+        string = "trainging" if subset == "train" else "validation"
+        print( "The number of {0} samples is {1} at Zurich Dataset".format( string, image_counter ) )
 
 
     def load_mask(self, image_id):
@@ -468,29 +465,39 @@ def train(model):
     # to handle broken pipe error
     from signal import signal, SIGPIPE, SIG_DFL
     signal( SIGPIPE, SIG_DFL )
-
+    #####################
+    # handle directories
+    #####################
     # whether or not to save video images
     save_bool = False
     save_video_image_directory = None
     if save_bool:
-        save_video_image_directory = "/Users/zhou/Desktop/hh"
+        #Todo: attention
+        save_video_image_directory = "/scratch/zgxsin/video_images/" # leonhard
+        save_video_image_directory = "/Users/zhou/Desktop/hh" # local
         if os.path.exists(save_video_image_directory ):
             shutil.rmtree(save_video_image_directory)
 
-
     # codes for handling carla images because of Leonhard limitation
+    # Todo: attention
+    original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
+    original_carla_directory = "/Users/zhou/Desktop/data/carla" # local
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )
 
-    # video clip directory
+    # Zurich video clip directory
     # /cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar
-    video_clip_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_clip"
-
+    # Todo: attention
+    video_clip_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_clip" ## leonhard
+    video_clip_directory = "/Users/zhou/Desktop/video_clip"   ## local
+    #####################
+    # handle directories
+    #####################
 
 
     dataset_train = CarlaDataset()
-    dataset_train.load_carla(args.dataset, "train")
+    dataset_train.load_carla(args.dataset, "train", original_directory= original_carla_directory)
     dataset_train.prepare()
 
     dataset_train2 = ZurichDataset()
@@ -501,7 +508,7 @@ def train(model):
 
     # Validation dataset
     dataset_val = CarlaDataset()
-    dataset_val.load_carla(args.dataset, "val")
+    dataset_val.load_carla(args.dataset, "val", original_directory=  original_carla_directory)
     dataset_val.prepare()
 
     dataset_val2 = ZurichDataset()
