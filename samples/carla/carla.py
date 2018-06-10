@@ -69,8 +69,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 3
-    GPU_COUNT = 4
+    IMAGES_PER_GPU = 4
+    GPU_COUNT = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -162,7 +162,6 @@ class CarlaDataset(utils.Dataset):
                 if np.sum(labels == i) >= 20:
                     masks.append((labels == i))
                     count = count + 1
-            # todo: what is masks is empty?
             masks = np.asarray(masks)
             self.add_image(
                 "carla",
