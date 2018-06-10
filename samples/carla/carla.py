@@ -82,7 +82,7 @@ class CarlaConfig(Config):
     DETECTION_MIN_CONFIDENCE = 0.9
 
     # set MINI mask shape, since tram is always rectangular.
-    MINI_MASK_SHAPE = (56, 90)
+    # MINI_MASK_SHAPE = (56, 90)
 
 
 ############################################################
@@ -129,6 +129,12 @@ class CarlaDataset(utils.Dataset):
             with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
                 tar.extractall(path=directory)
                 tar.close()
+
+            # with tarfile.open('/Users/zhou/Desktop/data/carla/train/RGB.tar', 'r' ) as tar:
+            #     tar.extractall(path=directory)
+            #     tar.close()
+
+
 
             with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
                 tar.extractall(path=directory)
@@ -474,7 +480,7 @@ def train(model):
 
     # codes for handling carla images because of Leonhard limitation
     unzip_directory = args.dataset
-    if os.path.exists( unzip_directory  ):
+    if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )
 
     # video clip directory
