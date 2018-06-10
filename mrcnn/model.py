@@ -1625,8 +1625,8 @@ def generate_random_rois(image_shape, count, gt_class_ids, gt_boxes):
     rois[-remaining_count:] = global_rois
     return rois
 
-def data_generator(dataset, config, shuffle=True, augment=False, augmentation=None,
-                   random_rois=0, batch_size=1, detection_targets=False, carla_rate=0.5):
+def data_generator(dataset, config, carla_rate, shuffle=True, augment=False, augmentation=None,
+                   random_rois=0, batch_size=1, detection_targets=False):
     """A generator that returns images and corresponding target class ids,
     bounding box deltas, and masks.
 
@@ -1705,6 +1705,11 @@ def data_generator(dataset, config, shuffle=True, augment=False, augmentation=No
                     load_image_gt(dataset[0], config, image_id, augment=augment,
                                   augmentation=augmentation,
                                   use_mini_mask=config.USE_MINI_MASK)
+
+                # import matplotlib.pyplot as plt
+                # plt.figure()
+                # plt.imshow(image)
+                # plt.show()
 
                 # Skip images that have no instances. This can happen in cases
                 # where we train on a subset of classes and the image doesn't
@@ -2353,7 +2358,7 @@ class MaskRCNN():
             "*epoch*", "{epoch:04d}")
 
     def train(self, train_dataset, val_dataset, learning_rate, epochs, layers,
-              augmentation=None):
+              augmentation=None, carla_rate = 0.5):
         """Train the model.
         train_dataset, val_dataset: Training and validation Dataset objects.
         learning_rate: The learning rate to train with
@@ -2400,9 +2405,9 @@ class MaskRCNN():
         # Data generators
         train_generator = data_generator(train_dataset, self.config, shuffle=True,
                                          augmentation=augmentation,
-                                         batch_size=self.config.BATCH_SIZE)
+                                         batch_size=self.config.BATCH_SIZE, carla_rate=carla_rate)
         val_generator = data_generator(val_dataset, self.config, shuffle=True,
-                                       batch_size=self.config.BATCH_SIZE)
+                                       batch_size=self.config.BATCH_SIZE, carla_rate=carla_rate)
 
         # Callbacks
         callbacks = [

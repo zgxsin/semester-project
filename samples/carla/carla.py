@@ -88,7 +88,7 @@ class CarlaConfig(Config):
 
 class CarlaDataset(utils.Dataset):
 
-    def load_carla(self, dataset_dir, subset):
+    def load_carla(self, dataset_dir, subset, unzip_directory = None):
         """Load a subset of the Balloon dataset.
         dataset_dir: Root directory of the dataset.
         subset: Subset to load: train or val
@@ -100,8 +100,6 @@ class CarlaDataset(utils.Dataset):
         assert subset in ["train", "val"]
         dataset_dir_origin = dataset_dir
         dataset_dir = os.path.join(dataset_dir, subset)
-
-        # mypath = "/Users/zhou/Downloads/MyDocuments/Imaga_DataSet_Training/0_100/Dynamic/dataset/train_mask/"
         mask_path = os.path.join(dataset_dir, "Mask")
 
         ##############
@@ -111,28 +109,19 @@ class CarlaDataset(utils.Dataset):
         ## command line: python3 carla.py train --dataset="/scratch/zgxsin/dataset/" --weights=coco
         #############
         # delete the directory first
-        # if os.path.exists("/scratch/zgxsin"):
-        #     shutil.rmtree("/scratch/zgxsin")
-        # directory = ["/scratch/zgxsin/dataset/train/",
-        #             "/scratch/zgxsin/dataset/val/"]
-        # for i in range(len( directory)):
-        #     if not os.path.exists(directory[i]):
-        #         os.makedirs(directory[i])
+
+
+        # directory = os.path.join(unzip_directory, subset)
+        #
+        # if not os.path.exists(directory):
+        #     os.makedirs(directory)
         #
         # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[0])
+        #     tar.extractall(path=directory)
         #     tar.close()
         #
         # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/train/Mask.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[0])
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/RGB.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[1])
-        #     tar.close()
-        #
-        # with tarfile.open('/cluster/work/riner/users/zgxsin/semester_project/dataset/val/Mask.tar', 'r' ) as tar:
-        #     tar.extractall(path=directory[1])
+        #     tar.extractall(path=directory)
         #     tar.close()
 
         #############
@@ -326,7 +315,7 @@ class ZurichDataset(utils.Dataset):
                 count = count + 1
         return count, np.asarray(connect_components, dtype=bool)
 
-    def save_image(self, filename, target_index, image, mask, directory, subset):
+    def save_image(self, filename, target_index, image, mask, save_directory):
         '''
 
         :param self:
@@ -335,31 +324,20 @@ class ZurichDataset(utils.Dataset):
         :param directory: directory to save video images
         :return:
         '''
-        # delete the directory first
         image = Image.fromarray(image)
-        if os.path.exists( directory ):
-            shutil.rmtree( directory )
-        directory = [os.path.join( directory, "train" ),
-                     os.path.join( directory, "val" )]
-
-        for i in range(len( directory ) ):
-            if not os.path.exists( directory[i] ):
-                os.makedirs( directory[i] )
-
-        j = 0 if subset == "train" else 1
-        image.save(os.path.join(directory[j], filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
+        image.save(os.path.join(save_directory, filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
 
         # np.uint8 is important. otherwise may cause error
         mask = mask.astype(np.uint8)
         for n in range(mask.shape[0]):
             binary_image = cv2.cvtColor(mask[n], cv2.COLOR_GRAY2BGR)*255
             mask_image = Image.fromarray(binary_image)
-            mask_image.save(os.path.join(directory[j],filename.split('.')[0] + "__Frame" + str(target_index) + "__CC" + str(n) +'.png'))
+            mask_image.save(os.path.join(save_directory,filename.split('.')[0] + "__Frame" + str(target_index) + "__CC" + str(n) +'.png'))
 
 
 
 
-    def load_zurich(self, dataset_dir, subset):
+    def load_zurich(self, dataset_dir, subset, save_bool = False, save_directory= None):
         """Load a subset of the Balloon dataset.
         dataset_dir: Root directory of the dataset.
         subset: Subset to load: train or val
@@ -371,8 +349,12 @@ class ZurichDataset(utils.Dataset):
         assert subset in ["train", "val"]
         # dataset_dir_origin = dataset_dir
         dataset_dir = os.path.join(dataset_dir, subset)
-
         video_list = [f for f in listdir(dataset_dir) if isfile(join(dataset_dir, f ))]
+
+        # make directories to save video images
+        if save_bool:
+            extend_save_directory = os.path.join(save_directory, subset)
+            os.makedirs(extend_save_directory)
 
         for i, filename in enumerate( video_list ):
             video_path = os.path.join(dataset_dir, filename)
@@ -380,7 +362,7 @@ class ZurichDataset(utils.Dataset):
             # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
             sample_frame_array = np.asarray( range( image_array.shape[0]) )
             # remove first 5 frames and last 5 frames to be robust to noise
-            target_indexs = sample_frame_array[5:image_array.shape[0]- 5:10]
+            target_indexs = sample_frame_array[5:image_array.shape[0]- 5:20]
 
             # target_indexs = [20]
             for target_index in target_indexs:
@@ -400,8 +382,8 @@ class ZurichDataset(utils.Dataset):
                 connectivity = 8
                 output1 = cv2.connectedComponents( input1, connectivity, cv2.CV_32S )
                 _, final_connected_components_bool_array= self.show_final_mask( target_index, output1[0], output1[1], iter=5, kernel_size=6, show=True )
-
-                self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, directory="/Users/zhou/Desktop/hh", subset=subset)
+                if save_bool:
+                    self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, save_directory=extend_save_directory)
                 self.add_image(
                     "zurich",
                     image_id=os.path.join( filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
@@ -463,23 +445,43 @@ def train(model):
     # to handle broken pipe error
     from signal import signal, SIGPIPE, SIG_DFL
     signal( SIGPIPE, SIG_DFL )
+
+    # whether or not to save video images
+    save_bool = False
+    save_video_image_directory = None
+    if save_bool:
+        save_video_image_directory = "/Users/zhou/Desktop/hh"
+        if os.path.exists(save_video_image_directory ):
+            shutil.rmtree(save_video_image_directory)
+
+
+    # codes for handling carla images because of Leonhard limitation
+    unzip_directory = "/scratch/zgxsin/dataset"
+    if os.path.exists( unzip_directory  ):
+        shutil.rmtree( unzip_directory )
+
+    # video clip directory
+    video_clip_directory = "/Users/zhou/Desktop/video_clip"
+
+
+
     dataset_train = CarlaDataset()
-    dataset_train.load_carla(args.dataset, "train")
+    dataset_train.load_carla(args.dataset, "train", unzip_directory=unzip_directory)
     dataset_train.prepare()
 
     dataset_train2 = ZurichDataset()
-    dataset_train2.load_zurich("/Users/zhou/Desktop/video_clip", "train" )
+    dataset_train2.load_zurich(video_clip_directory, "train", save_bool = save_bool, save_directory= save_video_image_directory)
     dataset_train2.prepare()
 
     dataset_train_list = [dataset_train,dataset_train2]
 
     # Validation dataset
     dataset_val = CarlaDataset()
-    dataset_val.load_carla(args.dataset, "val")
+    dataset_val.load_carla(args.dataset, "val", unzip_directory=unzip_directory)
     dataset_val.prepare()
 
     dataset_val2 = ZurichDataset()
-    dataset_val2.load_zurich("/Users/zhou/Desktop/video_clip", "val" )
+    dataset_val2.load_zurich(video_clip_directory, "val", save_bool = save_bool, save_directory= save_video_image_directory )
     dataset_val2.prepare()
 
     dataset_val_list = [dataset_val, dataset_val2]
@@ -488,10 +490,13 @@ def train(model):
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
     print("Training network heads")
+
+    # default carla rate = 0.5
     model.train(dataset_train_list, dataset_val_list,
                 learning_rate=config.LEARNING_RATE,
                 epochs=20,
-                layers='heads')
+                layers='heads', carla_rate= 0.5)
+
     ##after training, delete the temp directory
     if os.path.exists("/scratch/zgxsin" ):
         shutil.rmtree( "/scratch/zgxsin" )
