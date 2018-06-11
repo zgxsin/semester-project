@@ -70,8 +70,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 3
-    GPU_COUNT = 4
+    IMAGES_PER_GPU = 2
+    GPU_COUNT = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -378,7 +378,7 @@ class ZurichDataset(utils.Dataset):
             # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
             sample_frame_array = np.asarray( range( image_array.shape[0]) )
             # remove first 5 frames and last 5 frames to be robust to noise
-            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
+            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:30]
 
             # target_indexs = [20]
 
@@ -532,6 +532,7 @@ def train(model):
     ##after training, delete the temp directory
     if os.path.exists("/scratch/zgxsin" ):
         shutil.rmtree( "/scratch/zgxsin" )
+        print('Delete /scratch/zgxsin! ')
 ############################################################
 #  Training
 ############################################################
