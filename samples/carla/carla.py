@@ -318,17 +318,21 @@ class ZurichDataset(utils.Dataset):
                 temp = np.asarray(temp, dtype=np.uint8 )
 
                 # component_after_closing = cv2.morphologyEx(temp, cv2.MORPH_CLOSE, kernel, iterations=4)
+                # component_after_closing is ndarray, np.uint8
                 if not show:
-                    component_after_closing = cv2.morphologyEx( temp, cv2.MORPH_DILATE, kernel, iterations=iter )
+                    component_after_closing = cv2.morphologyEx( temp, cv2.MORPH_DILATE, kernel, iterations=iter)
+
                 else:
                     # plt.figure( "Sample Frame " + str( target_index ) + ": Connected Components " + str( count + 1 ) )
                     # plt.title( "Sample Frame " + str( target_index ) + ": Connected Components " + str( count + 1 ) )
                     component_after_closing = cv2.morphologyEx( temp, cv2.MORPH_ERODE, kernel, iterations=iter )
                     # plt.imshow( component_after_closing, 'gray' )
                     # print( "The Number of Pixels in Component {0} is {1}".format( count + 1, np.sum( temp ) ) )
-                connect_components.append( component_after_closing )
+                # when show = True, we do erosion, so the forground pixels may be below 300, which should be excluded.
+                if np.count_nonzero(component_after_closing) >= 300:
+                    connect_components.append(component_after_closing )
 
-                count = count + 1
+                    count = count + 1
         return count, np.asarray(connect_components, dtype=bool)
 
     def save_image(self, filename, target_index, image, mask, save_directory):
@@ -375,10 +379,13 @@ class ZurichDataset(utils.Dataset):
         for i, filename in enumerate( video_list ):
             video_path = os.path.join(dataset_dir, filename)
             image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
+            # if we do not read images from the video, skip it and continue
+            if image_origin_list is None:
+                continue
             # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
             sample_frame_array = np.asarray( range( image_array.shape[0]) )
             # remove first 5 frames and last 5 frames to be robust to noise
-            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:30]
+            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
 
             # target_indexs = [20]
 
