@@ -1794,7 +1794,8 @@ def data_generator(dataset, config, carla_rate, shuffle=True, augment=False, aug
                         batch_mrcnn_bbox[b] = mrcnn_bbox
                         batch_mrcnn_mask[b] = mrcnn_mask
                 b += 1
-            # add our own data to the laspt part of a batch
+
+            # add our own data to the last part of a batch
             else:
                 image_index2 = (image_index2 + 1) % len( image_ids2 )
                 if shuffle and image_index2 == 0:
@@ -1803,7 +1804,7 @@ def data_generator(dataset, config, carla_rate, shuffle=True, augment=False, aug
                 # Get GT bounding boxes and masks for image.
                 image_id = image_ids2[image_index2]
                 image, image_meta, gt_class_ids, gt_boxes, gt_masks = \
-                    load_image_gt( dataset[1], config, image_id, augment=augment,
+                    load_image_gt(dataset[1], config, image_id, augment=augment,
                                    augmentation=augmentation,
                                    use_mini_mask=config.USE_MINI_MASK )
                 # import matplotlib.pyplot as plt
@@ -1832,34 +1833,34 @@ def data_generator(dataset, config, carla_rate, shuffle=True, augment=False, aug
                                 rpn_rois, gt_class_ids, gt_boxes, gt_masks, config )
 
                 # Init batch arrays
-                # if b == 0:
-                #     batch_image_meta = np.zeros(
-                #         (batch_size,) + image_meta.shape, dtype=image_meta.dtype )
-                #     batch_rpn_match = np.zeros(
-                #         [batch_size, anchors.shape[0], 1], dtype=rpn_match.dtype )
-                #     batch_rpn_bbox = np.zeros(
-                #         [batch_size, config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4], dtype=rpn_bbox.dtype )
-                #     batch_images = np.zeros(
-                #         (batch_size,) + image.shape, dtype=np.float32 )
-                #     batch_gt_class_ids = np.zeros(
-                #         (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32 )
-                #     batch_gt_boxes = np.zeros(
-                #         (batch_size, config.MAX_GT_INSTANCES, 4), dtype=np.int32 )
-                #     batch_gt_masks = np.zeros(
-                #         (batch_size, gt_masks.shape[0], gt_masks.shape[1],
-                #          config.MAX_GT_INSTANCES), dtype=gt_masks.dtype )
-                #     if random_rois:
-                #         batch_rpn_rois = np.zeros(
-                #             (batch_size, rpn_rois.shape[0], 4), dtype=rpn_rois.dtype )
-                #         if detection_targets:
-                #             batch_rois = np.zeros(
-                #                 (batch_size,) + rois.shape, dtype=rois.dtype )
-                #             batch_mrcnn_class_ids = np.zeros(
-                #                 (batch_size,) + mrcnn_class_ids.shape, dtype=mrcnn_class_ids.dtype )
-                #             batch_mrcnn_bbox = np.zeros(
-                #                 (batch_size,) + mrcnn_bbox.shape, dtype=mrcnn_bbox.dtype )
-                #             batch_mrcnn_mask = np.zeros(
-                #                 (batch_size,) + mrcnn_mask.shape, dtype=mrcnn_mask.dtype )
+                if b == 0:
+                    batch_image_meta = np.zeros(
+                        (batch_size,) + image_meta.shape, dtype=image_meta.dtype )
+                    batch_rpn_match = np.zeros(
+                        [batch_size, anchors.shape[0], 1], dtype=rpn_match.dtype )
+                    batch_rpn_bbox = np.zeros(
+                        [batch_size, config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4], dtype=rpn_bbox.dtype )
+                    batch_images = np.zeros(
+                        (batch_size,) + image.shape, dtype=np.float32 )
+                    batch_gt_class_ids = np.zeros(
+                        (batch_size, config.MAX_GT_INSTANCES), dtype=np.int32 )
+                    batch_gt_boxes = np.zeros(
+                        (batch_size, config.MAX_GT_INSTANCES, 4), dtype=np.int32 )
+                    batch_gt_masks = np.zeros(
+                        (batch_size, gt_masks.shape[0], gt_masks.shape[1],
+                         config.MAX_GT_INSTANCES), dtype=gt_masks.dtype )
+                    if random_rois:
+                        batch_rpn_rois = np.zeros(
+                            (batch_size, rpn_rois.shape[0], 4), dtype=rpn_rois.dtype )
+                        if detection_targets:
+                            batch_rois = np.zeros(
+                                (batch_size,) + rois.shape, dtype=rois.dtype )
+                            batch_mrcnn_class_ids = np.zeros(
+                                (batch_size,) + mrcnn_class_ids.shape, dtype=mrcnn_class_ids.dtype )
+                            batch_mrcnn_bbox = np.zeros(
+                                (batch_size,) + mrcnn_bbox.shape, dtype=mrcnn_bbox.dtype )
+                            batch_mrcnn_mask = np.zeros(
+                                (batch_size,) + mrcnn_mask.shape, dtype=mrcnn_mask.dtype )
 
                 # If more instances than fits in the array, sub-sample from them.
                 if gt_boxes.shape[0] > config.MAX_GT_INSTANCES:
