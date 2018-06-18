@@ -142,7 +142,7 @@ class CarlaDataset(utils.Dataset):
             try:
                 image = skimage.io.imread(image_path)
             except:
-                print(image_path)
+                print("Not a valid image: ",image_path)
                 continue
             height, width = image.shape[:2]
             mask_temp = skimage.io.imread(os.path.join(mask_path, filename), as_grey=True)
@@ -344,19 +344,25 @@ class ZurichDataset(utils.Dataset):
         :param directory: directory to save video images
         :return:
         '''
+
+        if not os.path.exists(save_directory):
+            os.makedirs(save_directory )
         image = Image.fromarray(image)
-        image.save(os.path.join(save_directory, filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
+
+        os.makedirs(os.path.join(save_directory, "RGB"))
+        os.makedirs(os.path.join(save_directory, "Mask"))
+        image.save(os.path.join(save_directory, "RGB", filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
 
         # np.uint8 is important. otherwise may cause error
         mask = mask.astype(np.uint8)
         for n in range(mask.shape[0]):
             binary_image = cv2.cvtColor(mask[n], cv2.COLOR_GRAY2BGR)*255
             mask_image = Image.fromarray(binary_image)
-            mask_image.save(os.path.join(save_directory,filename.split('.')[0] + "__Frame" + str(target_index) + "__CC" + str(n) +'.png'))
+            mask_image.save(os.path.join(save_directory,"Mask",filename.split('.')[0] + "__Frame" + str(target_index) + "__CC" + str(n) +'.png'))
 
 
 
-    def load_zurich(self, dataset_dir, subset, save_bool = False, save_directory= None):
+    def load_zurich(self, dataset_dir, subset,  save_directory= None, mode = 1):
         """Load a subset of the Balloon dataset.
         dataset_dir: Root directory of the dataset.
         subset: Subset to load: train or val
@@ -366,58 +372,128 @@ class ZurichDataset(utils.Dataset):
 
         # Train or validation dataset?
         assert subset in ["train", "val"]
-        # dataset_dir_origin = dataset_dir
-        dataset_dir = os.path.join(dataset_dir, subset)
-        video_list = [f for f in listdir(dataset_dir) if isfile(join(dataset_dir, f ))]
+        assert mode in [1,2,3]
+        ##########
+        # mode=1: extract images and masks directly from videos and don't save them into directory
+        ##########
+        if mode == 1:
+            save_bool = False
+            save_directory = None
+            load_from_image = False
 
-        # make directories to save video images
-        if save_bool:
-            extend_save_directory = os.path.join(save_directory, subset)
-            os.makedirs(extend_save_directory)
+        ##########
+        # mode=2: extract images and masks directly from videos and save them into directory
+        ##########
+        elif mode == 2:
 
-        image_counter = 0
-        for i, filename in enumerate( video_list ):
-            video_path = os.path.join(dataset_dir, filename)
-            image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
-            # if we do not read images from the video, skip it and continue
-            if image_origin_list is None:
-                continue
-            # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
-            sample_frame_array = np.asarray( range( image_array.shape[0]) )
-            # remove first 5 frames and last 5 frames to be robust to noise
-            target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
+            save_bool = True
+            load_from_image = False
+        ##########
+        # mode=3: extract images and masks directly from saved directory based on mode 2
+        ##########
+        else:
+            save_bool = False
+            load_from_image = True
 
-            # target_indexs = [20]
 
-            for target_index in target_indexs:
-                # image_origin_list is RGB image
-                height, width = image_origin_list[target_index].shape[:2]
-                sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7)
-                num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff )
 
-                # display_process( target_index, image_origin_list, sum_diff_image, threshold_sum_diff, closing )
+        if not load_from_image:
+            # dataset_dir_origin = dataset_dir
+            dataset_dir = os.path.join(dataset_dir, subset)
+            video_list = [f for f in listdir(dataset_dir) if isfile(join(dataset_dir, f ))]
 
-                _, connect_components = self.show_final_mask(target_index, num_labels, labels, iter=5, kernel_size=6,
-                                                             show=False)
+            # make directories to save video images
+            if save_bool:
+                extend_save_directory = os.path.join(save_directory, subset)
+                os.makedirs(extend_save_directory)
 
-                connect_components_array = np.asarray( connect_components, np.int32 )
-                input1 = np.asarray( np.sum( connect_components_array, 0 ) > 0, np.uint8 )
+            image_counter = 0
+            for i, filename in enumerate( video_list ):
+                video_path = os.path.join(dataset_dir, filename)
+                image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
+                # if we do not read images from the video, skip it and continue
+                if image_origin_list is None:
+                    continue
+                # print( "We sample {0} frames from the video".format( image_array.shape[0] ) )
+                sample_frame_array = np.asarray( range( image_array.shape[0]) )
+                # remove first 5 frames and last 5 frames to be robust to noise
 
-                connectivity = 8
-                output1 = cv2.connectedComponents( input1, connectivity, cv2.CV_32S )
-                _, final_connected_components_bool_array= self.show_final_mask( target_index, output1[0], output1[1], iter=5, kernel_size=6, show=True )
-                if save_bool:
-                    self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, save_directory=extend_save_directory)
+                ## todo: this can be modified
+                target_indexs = sample_frame_array[2:image_array.shape[0]- 2:10]
+
+                target_indexs = [20]
+
+                for target_index in target_indexs:
+                    # image_origin_list is RGB image
+                    height, width = image_origin_list[target_index].shape[:2]
+                    sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7)
+                    num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff )
+
+                    # display_process( target_index, image_origin_list, sum_diff_image, threshold_sum_diff, closing )
+
+                    _, connect_components = self.show_final_mask(target_index, num_labels, labels, iter=5, kernel_size=6,
+                                                                 show=False)
+
+                    connect_components_array = np.asarray( connect_components, np.int32 )
+                    input1 = np.asarray( np.sum( connect_components_array, 0 ) > 0, np.uint8 )
+
+                    connectivity = 8
+                    output1 = cv2.connectedComponents( input1, connectivity, cv2.CV_32S )
+                    _, final_connected_components_bool_array= self.show_final_mask( target_index, output1[0], output1[1], iter=5, kernel_size=6, show=True )
+                    if save_bool:
+                        self.save_image(filename, target_index, image_origin_list[target_index], final_connected_components_bool_array, save_directory=extend_save_directory)
+                    self.add_image(
+                        "zurich",
+                        image_id=os.path.join(filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
+                        path=image_origin_list[target_index],
+                        width=width, height=height,
+                        polygons=final_connected_components_bool_array)
+                    image_counter = image_counter + 1
+
+            string = "training" if subset == "train" else "validation"
+            print( "The number of {0} samples is {1} at Zurich Dataset".format( string, image_counter ))
+
+        else:
+            extend_save_directory = os.path.join( save_directory, subset )
+            image_dir = os.path.join(extend_save_directory, "RGB")
+            mask_dir = os.path.join( extend_save_directory, "Mask" )
+            image_list = [f for f in listdir(image_dir ) if isfile(join(image_dir, f ) )]
+            image_counter = 0
+            for i, filename in enumerate( image_list ):
+                image_path = os.path.join(image_dir, filename )
+                try:
+                    image = skimage.io.imread(image_path)
+                except:
+                    print(image_path, " Can't read this image!")
+                    continue
+                height, width = image.shape[:2]
+                # image_path.split(".")[0]
+                masks = []
+                ## at most 100 instances for each image
+                for i in range(100):
+                    mask_filename = filename.split(".")[0]+"__CC%.1d" % i +".png"
+                    mask_path = os.path.join(mask_dir,mask_filename)
+                    try:
+                        mask_temp = skimage.io.imread(mask_path, as_grey=True )
+                    except:
+                        # print("Read Mask Over!")
+                        break
+                # mask has to be bool type
+                    mask_temp = mask_temp > 0
+                    # mask_temp = np.asarray( mask_temp, np.uint8 )
+                    masks.append(mask_temp)
+                masks = np.asarray( masks, np.bool )
                 self.add_image(
                     "zurich",
-                    image_id=os.path.join(filename, "Sample_Frame", str(target_index) ),  # use file name as a unique image id
-                    path=image_origin_list[target_index],
+                    image_id=filename,  # use file name as a unique image id
+                    path=image_path,
                     width=width, height=height,
-                    polygons=final_connected_components_bool_array)
+                    polygons=masks)
                 image_counter = image_counter + 1
 
-        string = "trainging" if subset == "train" else "validation"
-        print( "The number of {0} samples is {1} at Zurich Dataset".format( string, image_counter ) )
+            string = "training" if subset == "train" else "validation"
+            print( "The number of {0} samples is {1} at Zurich Dataset".format( string, image_counter ) )
+
 
 
     def load_mask(self, image_id):
@@ -474,21 +550,25 @@ def train(model):
     from signal import signal, SIGPIPE, SIG_DFL
     signal( SIGPIPE, SIG_DFL )
     #####################
-    # handle directories
+    # handle directories begin
     #####################
     # whether or not to save video images
-    save_bool = False
-    save_video_image_directory = None
-    if save_bool:
-        #Todo: attention
-        save_video_image_directory = "/scratch/zgxsin/video_images/" # leonhard
-        save_video_image_directory = "/Users/zhou/Desktop/hh" # local
+
+    # save_video_image_directory = "/scratch/zgxsin/video_images/" # leonhard
+    save_video_image_directory = "/Users/zhou/Desktop/hh" # local
+    load_zurich_mode = 3
+    #####-------------------------------------
+    # mode=1: extract images and masks directly from videos and don't save them into directory
+    # mode=2: extract images and masks directly from videos and save them into directory
+    # mode=3: extract images and masks directly from saved directory based on mode 2
+    #####-------------------------------------
+    if load_zurich_mode ==2:
         if os.path.exists(save_video_image_directory ):
             shutil.rmtree(save_video_image_directory)
 
     # codes for handling carla images because of Leonhard limitation
     # Todo: attention
-    original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
+    # original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
     original_carla_directory = "/Users/zhou/Desktop/data/carla" # local
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
@@ -497,10 +577,10 @@ def train(model):
     # Zurich video clip directory
     # /cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar
     # Todo: attention
-    video_clip_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_clip" ## leonhard
+    # video_clip_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_clip" ## leonhard
     video_clip_directory = "/Users/zhou/Desktop/video_clip"   ## local
     #####################
-    # handle directories
+    # handle directories over
     #####################
 
 
@@ -509,7 +589,7 @@ def train(model):
     dataset_train.prepare()
 
     dataset_train2 = ZurichDataset()
-    dataset_train2.load_zurich(video_clip_directory, "train", save_bool = save_bool, save_directory= save_video_image_directory)
+    dataset_train2.load_zurich(video_clip_directory, "train", save_directory= save_video_image_directory, mode= load_zurich_mode)
     dataset_train2.prepare()
 
     dataset_train_list = [dataset_train,dataset_train2]
@@ -520,7 +600,7 @@ def train(model):
     dataset_val.prepare()
 
     dataset_val2 = ZurichDataset()
-    dataset_val2.load_zurich(video_clip_directory, "val", save_bool = save_bool, save_directory= save_video_image_directory )
+    dataset_val2.load_zurich(video_clip_directory, "val", save_directory= save_video_image_directory, mode = load_zurich_mode )
     dataset_val2.prepare()
 
     dataset_val_list = [dataset_val, dataset_val2]
