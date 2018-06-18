@@ -348,9 +348,10 @@ class ZurichDataset(utils.Dataset):
         if not os.path.exists(save_directory):
             os.makedirs(save_directory )
         image = Image.fromarray(image)
-
-        os.makedirs(os.path.join(save_directory, "RGB"))
-        os.makedirs(os.path.join(save_directory, "Mask"))
+        if not os.path.join(save_directory, "RGB"):
+            os.makedirs(os.path.join(save_directory, "RGB"))
+        if not os.path.join(save_directory, "Mask"):
+            os.makedirs(os.path.join(save_directory, "Mask"))
         image.save(os.path.join(save_directory, "RGB", filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
 
         # np.uint8 is important. otherwise may cause error
@@ -554,7 +555,7 @@ def train(model):
     #####################
     # whether or not to save video images
 
-    # save_video_image_directory = "/scratch/zgxsin/video_images/" # leonhard
+    # save_video_image_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_images/" # leonhard
     save_video_image_directory = "/Users/zhou/Desktop/hh" # local
     load_zurich_mode = 3
     #####-------------------------------------
