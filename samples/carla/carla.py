@@ -39,6 +39,8 @@ import cv2
 import tarfile
 import shutil
 from PIL import Image
+from skimage.segmentation import slic
+from skimage.segmentation import mark_boundaries
 
 
 # Root directory of the project
@@ -233,22 +235,28 @@ class ZurichDataset(utils.Dataset):
         '''
 
         cam = cv2.VideoCapture(directory)
+        fgbg = cv2.createBackgroundSubtractorMOG2( varThreshold=16, detectShadows=False )
+        kernel = cv2.getStructuringElement( cv2.MORPH_ELLIPSE, (4, 4) )
         count_frame = 0
         clahe = cv2.createCLAHE( clipLimit=3, tileGridSize=(4, 4) )
         index = 0
-
+        fgmask_list = []
         image_list = []
         image_origin_list = []
         while True:
             ret, prev = cam.read()
             if not ret:
                 break
+            fgmask = fgbg.apply( prev )
             count_frame = count_frame + 1
             if count_frame % sample_rate == 0:
                 # the resize function can be ignored later
                 # prev = cv.resize(prev, (800, 800))
                 # add as RGB format
                 image_origin_list.append(cv2.cvtColor(prev, cv2.COLOR_BGR2RGB))
+                fgmask = cv2.morphologyEx( fgmask, cv2.MORPH_OPEN, kernel, iterations=2 )
+                fgmask = np.asarray( fgmask == 255, np.uint8 )
+                fgmask_list.append(fgmask)
                 prevgray = cv2.cvtColor(prev, cv2.COLOR_BGR2GRAY )
 
                 if preprosessing:
@@ -262,7 +270,7 @@ class ZurichDataset(utils.Dataset):
                 # image_stat= clahe.apply(image_stat)
                 index = index + 1
         # change to np.float32, so that i will not overflow when doing subtraction
-        return np.asarray(image_list, np.float32), image_origin_list
+        return np.asarray(image_list, np.float32), image_origin_list, fgmask_list
 
     def calculate_image_mask(self,target_index, image_array, threshold_rate):
         image_diff = np.subtract( image_array[target_index, :, :], image_array )
@@ -284,11 +292,13 @@ class ZurichDataset(utils.Dataset):
 
 
 
-    def morphlogical_process(self, threshold_sum_diff):
+    def morphlogical_process(self, threshold_sum_diff, fgmask):
         # apply morphlogical operation
         kernel = np.ones( (4, 4), np.uint8 )
         kernel1 = np.ones( (2, 2), np.uint8 )
         # suppress noise using opening (erosion + dilation)
+
+        threshold_sum_diff = np.asarray( (threshold_sum_diff + fgmask) > 0, np.uint8 )
         opening = cv2.morphologyEx( threshold_sum_diff, cv2.MORPH_OPEN, kernel1, iterations=1 )
         # fill the holes in forground (closing)
         closing = cv2.morphologyEx( opening, cv2.MORPH_CLOSE, kernel, iterations=3 )
@@ -334,6 +344,19 @@ class ZurichDataset(utils.Dataset):
 
                     count = count + 1
         return count, np.asarray(connect_components, dtype=bool)
+
+    def superpixel_based_processing(self,mask_image, orignal_image):
+        numSegments = 3000
+        segments = slic(orignal_image, n_segments=numSegments, sigma=5, compactness=10 )
+
+        for (i, segVal) in enumerate( np.unique( segments ) ):
+            temp = mask_image[segments == segVal]
+            frac = np.count_nonzero( temp ) / len( temp )
+            if frac >= 0.3:
+                mask_image[segments == segVal] = 1
+            else:
+                mask_image[segments == segVal] = 0
+        return mask_image
 
     def save_image(self, filename, target_index, image, mask, save_directory):
         '''
@@ -411,7 +434,7 @@ class ZurichDataset(utils.Dataset):
             image_counter = 0
             for i, filename in enumerate( video_list ):
                 video_path = os.path.join(dataset_dir, filename)
-                image_array, image_origin_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
+                image_array, image_origin_list, fgmask_list = self.read_video( video_path, sample_rate=30, preprosessing=False )
                 # if we do not read images from the video, skip it and continue
                 if image_origin_list is None:
                     continue
@@ -428,9 +451,15 @@ class ZurichDataset(utils.Dataset):
                     # image_origin_list is RGB image
                     height, width = image_origin_list[target_index].shape[:2]
                     sum_diff_image, threshold_sum_diff = self.calculate_image_mask( target_index, image_array, 0.7)
-                    num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff )
+                    num_labels, labels, closing = self.morphlogical_process( threshold_sum_diff, fgmask_list[target_index] )
 
                     # display_process( target_index, image_origin_list, sum_diff_image, threshold_sum_diff, closing )
+                    closing_1 = closing.copy()
+                    mask_image = self.superpixel_based_processing( mask_image=closing_1,
+                                                              orignal_image=image_origin_list[target_index])
+
+                    num_labels, labels, closing = self.morphlogical_process( mask_image,
+                                                                        fgmask=np.zeros(shape=mask_image.shape[:2] ) )
 
                     _, connect_components = self.show_final_mask(target_index, num_labels, labels, iter=5, kernel_size=6,
                                                                  show=False)
