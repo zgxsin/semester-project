@@ -348,9 +348,9 @@ class ZurichDataset(utils.Dataset):
         if not os.path.exists(save_directory):
             os.makedirs(save_directory )
         image = Image.fromarray(image)
-        if not os.path.join(save_directory, "RGB"):
+        if not os.path.exists(os.path.join(save_directory, "RGB")):
             os.makedirs(os.path.join(save_directory, "RGB"))
-        if not os.path.join(save_directory, "Mask"):
+        if not os.path.exists(os.path.join(save_directory, "Mask")):
             os.makedirs(os.path.join(save_directory, "Mask"))
         image.save(os.path.join(save_directory, "RGB", filename.split('.')[0] + "__Frame" + str(target_index) + '.png'))
 
