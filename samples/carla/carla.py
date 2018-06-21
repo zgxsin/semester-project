@@ -596,6 +596,19 @@ def train(model):
         if os.path.exists(save_video_image_directory ):
             shutil.rmtree(save_video_image_directory)
 
+    ######temp##########
+    if load_zurich_mode==3:
+        unzip_dir_video_images = "/scratch/zgxsin_image"  # leonhard
+        if os.path.exists(unzip_dir_video_images ):
+            shutil.rmtree(unzip_dir_video_images )
+        os.makedirs(unzip_dir_video_images)
+        with tarfile.open( os.path.join("/cluster/work/riner/users/zgxsin/semester_project/", "video_images.tar" ), 'r' ) as tar:
+            tar.extractall(path=unzip_dir_video_images)
+            tar.close()
+    save_video_image_directory = "/scratch/zgxsin_image/video_images/"
+
+    ######temp##########
+
     # codes for handling carla images because of Leonhard limitation
     # Todo: attention
     # original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
@@ -603,6 +616,7 @@ def train(model):
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )
+
 
     # Zurich video clip directory
     # /cluster/work/riner/users/zgxsin/semester_project/dataset/train/RGB.tar
