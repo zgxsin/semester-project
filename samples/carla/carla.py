@@ -314,8 +314,8 @@ def train(model):
     # Handle carla images dir.
     # ------------------------------------------------------------------------
     # Todo: attention
-    original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
-    #original_carla_directory = "/Users/zhou/Desktop/data/carla" # local
+    #original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
+    original_carla_directory = "/Users/zhou/Desktop/data/carla" # local
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )
@@ -324,16 +324,16 @@ def train(model):
     #-------------------------------------------------------------------------
     # Handle video images dir.
     # ------------------------------------------------------------------------
-    unzip_dir_video_images = "/scratch/zgxsin_image"  # leonhard
-    if os.path.exists( unzip_dir_video_images ):
-        shutil.rmtree( unzip_dir_video_images )
-    os.makedirs( unzip_dir_video_images )
-    with tarfile.open( os.path.join( "/cluster/work/riner/users/zgxsin/semester_project/", "video_images.tar" ), 'r' ) as tar:
-            tar.extractall( path=unzip_dir_video_images )
-            tar.close()
-    #video_image_directory = "/Users/zhou/Desktop/hh"  # local
+    # unzip_dir_video_images = "/scratch/zgxsin_image"  # leonhard
+    # if os.path.exists( unzip_dir_video_images ):
+    #     shutil.rmtree( unzip_dir_video_images )
+    # os.makedirs( unzip_dir_video_images )
+    # with tarfile.open( os.path.join( "/cluster/work/riner/users/zgxsin/semester_project/", "video_images.tar" ), 'r' ) as tar:
+    #         tar.extractall( path=unzip_dir_video_images )
+    #         tar.close()
+    video_image_directory = "/Users/zhou/Desktop/hh"  # local
     #video_image_directory = "/cluster/work/riner/users/zgxsin/semester_project/video_images/" # leonhard
-    video_image_directory = "/scratch/zgxsin_image/video_images/"
+    #video_image_directory = "/scratch/zgxsin_image/video_images/"
 
     #####################
     # handle directories over
@@ -444,7 +444,7 @@ if __name__ == '__main__':
             utils.download_trained_weights(weights_path)
     elif args.weights.lower() == "last":
         # Find last trained weights
-        weights_path = model.find_last()[1]
+        weights_path = model.find_last()
     elif args.weights.lower() == "imagenet":
         # Start from ImageNet trained weights
         weights_path = model.get_imagenet_weights()
