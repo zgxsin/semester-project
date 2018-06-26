@@ -374,10 +374,9 @@ def train(model):
     # Since we're using a very small dataset, and starting from
     # COCO trained weights, we don't need to train too long. Also,
     # no need to train all layers, just the heads should do it.
-    print("Training network heads")
 
     # default carla rate = 0.5
-    augmentation_instance = imgaug.augmenters.Sometimes(0.5, [
+    augmentation = imgaug.augmenters.Sometimes(0.5, [
                     imgaug.augmenters.Fliplr(0.5),
                     imgaug.augmenters.Flipud(0.2),
                     imgaug.augmenters.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -386,15 +385,37 @@ def train(model):
                     imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
 
                 ])
-    model.train(dataset_train_list, dataset_val_list,
-                learning_rate=config.LEARNING_RATE,
-                epochs=70,
-                layers='heads', carla_rate= 0.5, augmentation=augmentation_instance)
 
-    ##after training, delete the temp directory
-    if os.path.exists("/scratch/zgxsin" ):
-        shutil.rmtree( "/scratch/zgxsin" )
-        print('Delete /scratch/zgxsin! ')
+    print( "Training all network layers" )
+    model.train( dataset_train_list, dataset_val_list,
+                 learning_rate=config.LEARNING_RATE,
+                 epochs=80,
+                 layers='all',
+                 augmentation=augmentation, carla_rate=1)
+
+    # Training - Stage 2
+    # Finetune layers from ResNet stage 4 and up
+    print( "Fine tune Resnet stage 5 and up" )
+    model.train(dataset_train_list, dataset_val_list,
+                 learning_rate=config.LEARNING_RATE,
+                 epochs=120,
+                 layers='5+',
+                 augmentation=augmentation, carla_rate=0.7)
+
+    # Training - Stage 3
+    # Fine tune all layers
+    print( "Fine tune heads layers" )
+    model.train( dataset_train_list, dataset_val_list,
+                 learning_rate=config.LEARNING_RATE / 10,
+                 epochs=140,
+                 layers='heads',
+                 augmentation=augmentation, carla_rate=0)
+
+    # model.train(dataset_train_list, dataset_val_list,
+    #             learning_rate=config.LEARNING_RATE,
+    #             epochs=70,
+    #             layers='heads', carla_rate= 0.5, augmentation=augmentation)
+
 ############################################################
 #  Training
 ############################################################
@@ -483,6 +504,8 @@ if __name__ == '__main__':
 
     # Train or evaluate
     if args.command == "train":
+
+
         train(model)
 
     else:
