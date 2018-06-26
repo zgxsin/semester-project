@@ -42,3 +42,5 @@ for c in cnts:
     cv2.waitKey(1000)
 # cv2.waitKey(0)
 #### https://www.pyimagesearch.com/2014/10/20/finding-shapes-images-using-python-opencv/
+
+np.unique()

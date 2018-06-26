@@ -83,7 +83,13 @@ class CarlaConfig(Config):
 
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.75
-
+    LOSS_WEIGHTS = {
+        "rpn_class_loss": 1.,
+        "rpn_bbox_loss": 1.,
+        "mrcnn_class_loss": 1.,
+        "mrcnn_bbox_loss": 1.,
+        "mrcnn_mask_loss": 1.
+    }
     # set MINI mask shape, since tram is always rectangular.
     # MINI_MASK_SHAPE = (56, 90)
 
@@ -318,7 +324,7 @@ def train(model):
     # ------------------------------------------------------------------------
     # Todo: attention
     #original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
-    original_carla_directory = "/Users/zhou/Desktop/data/carla" # local
+    original_carla_directory = "/Users/zhou/Desktop/carla" # local
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )

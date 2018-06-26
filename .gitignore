@@ -64,3 +64,5 @@ setup.cfg
 !samples/demo.ipynb
 dataset/
 !samples/carla/
+samples/carla/part1
+samples/
