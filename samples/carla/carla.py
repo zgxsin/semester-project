@@ -39,6 +39,7 @@ import cv2
 import tarfile
 import shutil
 import scipy
+import imgaug
 from PIL import Image
 from skimage.segmentation import slic
 from skimage.segmentation import mark_boundaries
@@ -376,10 +377,19 @@ def train(model):
     print("Training network heads")
 
     # default carla rate = 0.5
+    augmentation_instance = imgaug.augmenters.Sometimes(0.5, [
+                    imgaug.augmenters.Fliplr(0.5),
+                    imgaug.augmenters.Flipud(0.2),
+                    imgaug.augmenters.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                                             rotate=(-15, 15),),
+                    imgaug.augmenters.ContrastNormalization((0.5, 2.0), per_channel=0.5),  # improve or worsen the contrast
+                    imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
+
+                ])
     model.train(dataset_train_list, dataset_val_list,
                 learning_rate=config.LEARNING_RATE,
                 epochs=70,
-                layers='heads', carla_rate= 0.5)
+                layers='heads', carla_rate= 0.5, augmentation=augmentation_instance)
 
     ##after training, delete the temp directory
     if os.path.exists("/scratch/zgxsin" ):
