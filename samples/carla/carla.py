@@ -75,12 +75,12 @@ class CarlaConfig(Config):
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
     IMAGES_PER_GPU = 2
-    GPU_COUNT = 1
+    GPU_COUNT = 4
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
     # Number of training steps per epoch
-    STEPS_PER_EPOCH = 100
+    STEPS_PER_EPOCH = 150
 
     # Skip detections with < 90% confidence
     DETECTION_MIN_CONFIDENCE = 0.75
@@ -389,7 +389,7 @@ def train(model):
     print( "Training all network layers" )
     model.train( dataset_train_list, dataset_val_list,
                  learning_rate=config.LEARNING_RATE,
-                 epochs=80,
+                 epochs=30,
                  layers='all',
                  augmentation=augmentation, carla_rate=1)
 
@@ -398,7 +398,7 @@ def train(model):
     print( "Fine tune Resnet stage 5 and up" )
     model.train(dataset_train_list, dataset_val_list,
                  learning_rate=config.LEARNING_RATE,
-                 epochs=120,
+                 epochs=80,
                  layers='5+',
                  augmentation=augmentation, carla_rate=0.7)
 
@@ -407,9 +407,9 @@ def train(model):
     print( "Fine tune heads layers" )
     model.train( dataset_train_list, dataset_val_list,
                  learning_rate=config.LEARNING_RATE / 10,
-                 epochs=140,
+                 epochs=100,
                  layers='heads',
-                 augmentation=augmentation, carla_rate=0)
+                 augmentation=augmentation, carla_rate=0.3)
 
     # model.train(dataset_train_list, dataset_val_list,
     #             learning_rate=config.LEARNING_RATE,
