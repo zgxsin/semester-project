@@ -38,6 +38,7 @@ import cv2
 # import os
 import tarfile
 import shutil
+import scipy
 from PIL import Image
 from skimage.segmentation import slic
 from skimage.segmentation import mark_boundaries
@@ -165,8 +166,10 @@ class CarlaDataset(utils.Dataset):
             # zero represent the background, strat from 1
             for i in range(1, num_labels):
                 # robust to noise, the instance region mush has more than 10 pixels
-                if np.sum(labels == i) >= 20:
-                    masks.append((labels == i))
+                temp = labels == i
+                temp = scipy.ndimage.morphology.binary_fill_holes( temp ).astype( np.bool )
+                if np.sum( temp ) >= 20:
+                    masks.append( temp )
                     count = count + 1
             masks = np.asarray(masks)
             self.add_image(
