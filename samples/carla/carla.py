@@ -74,8 +74,8 @@ class CarlaConfig(Config):
 
     # We use a GPU with 12GB memory, which can fit two images.
     # Adjust down if you use a smaller GPU.
-    IMAGES_PER_GPU = 2
-    GPU_COUNT = 4
+    IMAGES_PER_GPU = 1
+    GPU_COUNT = 1
     # Number of classes (including background)
     NUM_CLASSES = 1 + 1  # Background + balloon
 
@@ -179,6 +179,10 @@ class CarlaDataset(utils.Dataset):
                     masks.append( temp )
                     count = count + 1
             masks = np.asarray(masks)
+            # if an image doesn't have a mask, skip it.
+            if not masks.size>0:
+                continue
+
             self.add_image(
                 "carla",
                 image_id=filename,  # use file name as a unique image id
@@ -267,6 +271,8 @@ class ZurichDataset(utils.Dataset):
                 # mask_temp = np.asarray( mask_temp, np.uint8 )
                 masks.append( mask_temp )
             masks = np.asarray( masks, np.bool )
+            if not masks.size>0:
+                continue
             self.add_image(
                 "zurich",
                 image_id=filename,  # use file name as a unique image id
@@ -325,7 +331,7 @@ def train(model):
     # ------------------------------------------------------------------------
     # Todo: attention
     #original_carla_directory = "/cluster/work/riner/users/zgxsin/semester_project/dataset" # leonhard
-    original_carla_directory = "/Users/zhou/Desktop/carla" # local
+    original_carla_directory = "/Users/zhou/Desktop/carla_2" # local
     unzip_directory = args.dataset
     if os.path.exists( unzip_directory ):
         shutil.rmtree( unzip_directory )
@@ -390,7 +396,7 @@ def train(model):
     model.train( dataset_train_list, dataset_val_list,
                  learning_rate=config.LEARNING_RATE,
                  epochs=30,
-                 layers='all',
+                 layers='heads',
                  augmentation=augmentation, carla_rate=1)
 
     # Training - Stage 2

@@ -1267,8 +1267,16 @@ def load_image_gt(dataset, config, image_id, augment=False, augmentation=None,
 
     # Note that some boxes might be all zeros if the corresponding mask got cropped out.
     # and here is to filter them out
+
+    # mask = mask[:, :, ~np.all( mask == 0, axis=(0, 1) )]
+    # class_ids = class_ids[:mask.shape[-1]]
+
     _idx = np.sum(mask, axis=(0, 1)) > 0
     mask = mask[:, :, _idx]
+
+    # remove the mask instance which doesn't contain any mask after argumentation
+
+
     class_ids = class_ids[_idx]
     # Bounding boxes. Note that some boxes might be all zeros
     # if the corresponding mask got cropped out.
