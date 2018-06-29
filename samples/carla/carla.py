@@ -385,14 +385,21 @@ def train(model):
     augmentation = imgaug.augmenters.Sometimes(0.5, [
                     imgaug.augmenters.Fliplr(0.5),
                     imgaug.augmenters.Flipud(0.2),
-                    imgaug.augmenters.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
-                                             rotate=(-15, 15),),
+
+                    imgaug.augmenters.Affine(
+                        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+                        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+                                             rotate=(-15, 15),
+                        shear=(-16, 16),
+                    ),
                     imgaug.augmenters.ContrastNormalization((0.5, 2.0), per_channel=0.5),  # improve or worsen the contrast
                     imgaug.augmenters.GaussianBlur(sigma=(0.0, 5.0))
 
                 ])
 
     print( "Training all network layers" )
+
+    # Notice the training and val samples for each data set, set the steps rationally
     model.train( dataset_train_list, dataset_val_list,
                  learning_rate=config.LEARNING_RATE,
                  epochs=30,
