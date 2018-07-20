@@ -12,7 +12,7 @@ Open the `inspect_carla_data-new.ipynb` or `inspect_carla_model-new.ipynb` Jupte
 3. Run samples/mask_extraction/mask_extraction.py to build real-world data (images and instance masks).
 4. Start training (see next step).
 
-## Train the Balloon model
+## Train the model
 
 Train a new model starting from pre-trained COCO weights
 ```
