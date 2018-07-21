@@ -68,11 +68,11 @@ if __name__ == '__main__':
     # cam = video.create_capture("/Users/zhou/PycharmProjects/Semester_Project_Part1/vtest.avi")
     # cam = cv.VideoCapture(fn)
     # read according to the order if using this address format
-    cam = cv.VideoCapture("/Users/zhou/Desktop/Pictures/IMG_%05d.jpg")
-    # cam = cv.VideoCapture('/Users/zhou/Desktop/data/video_clip/train/IMG_00000.MOV')
+    # cam = cv.VideoCapture("/Users/zhou/Desktop/Pictures/IMG_%05d.jpg")
+    cam = cv.VideoCapture('/Users/zhou/Desktop/data/video_clip/train/IMG_00000.MOV')
     ret, prev = cam.read()
     # the resize function can be ignored later
-    prev = cv.resize(prev, (800,800))
+    # prev = cv.resize(prev, (800,800))
     prevgray = cv.cvtColor(prev, cv.COLOR_BGR2GRAY)
 
     show_hsv = False
@@ -84,23 +84,25 @@ if __name__ == '__main__':
     while True:
         ret, img = cam.read()
         # the resize function can be ignored later
-        img = cv.resize(img, (800, 800))
+        # img = cv.resize(img, (800, 800))
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
         # 8-bit single-channel input image
         # calcOpticalFlowFarneback(prev, next, flow, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags) → flow
         flow = cv.calcOpticalFlowFarneback(prevgray, gray, None, 0.5, 3, 15, 3, 5, 1.2, 0)
         flow_matitude = np.sqrt(np.square(flow[:,:,0]) + np.square(flow[:,:,1]))
-        if (flow_matitude.max() >= 8 and np.sum(flow_matitude > 10) >=15):
-            cv.imwrite("/Users/zhou/Desktop/testset/save/Img_" + str(count) + ".jpg", img)
+        # if (flow_matitude.max() >= 8 and np.sum(flow_matitude > 10) >=15):
+        if count >= 500:
+            cv.imwrite("/Users/zhou/Desktop/testset/save/Img_" + str(count) + ".png", gray)
             binary_image = np.asarray(flow_matitude > 10, dtype=np.uint8)
 
 
-            # plt.imshow(binary_image)
+            # plt.imshow(bin
+            # ary_image)
             # plt.show()
             binary_image = cv.cvtColor(binary_image, cv.COLOR_GRAY2BGR)*255
-            cv.imwrite("/Users/zhou/Desktop/testset/save/Mask_" + str(count) + ".jpg", binary_image)
-            count = count + 1
+            cv.imwrite("/Users/zhou/Desktop/testset/save/Mask_" + str(count) + ".png", binary_image)
+        count = count + 1
 
 
         prevgray = gray

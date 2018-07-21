@@ -154,8 +154,9 @@ If you use Docker, the code has been verified to work on
     ```bash
     python3 setup.py install
     ``` 
-3. Download pre-trained COCO weights (mask_rcnn_coco.h5) from the [releases page](https://github.com/matterport/Mask_RCNN/releases).
-4. (Optional) To train or test on MS COCO install `pycocotools` from one of these repos. They are forks of the original pycocotools with fixes for Python3 and Windows (the official repo doesn't seem to be active anymore).
+4. Download pre-trained COCO weights (mask_rcnn_coco.h5) from the [releases page](https://github.com/matterport/Mask_RCNN/releases).
+5. If you want to reproduce the results in the report, please send an email to `guzhou@ethz.ch` for the simulation dataset and real-world dataset. Otherwise the weights provided in this repo can be used for quick test.
+6. (Optional) To train or test on MS COCO install `pycocotools` from one of these repos. They are forks of the original pycocotools with fixes for Python3 and Windows (the official repo doesn't seem to be active anymore).
 
     * Linux: https://github.com/waleedka/coco
     * Windows: https://github.com/philferriere/cocoapi.

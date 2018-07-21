@@ -3,6 +3,7 @@
 # -------------------------------------------------------------------------------------------------------------------
 import numpy as np
 import cv2 as cv
+from PIL import Image
 cap = cv.VideoCapture('/Users/zhou/Desktop/data/video_clip/train/IMG_00000.MOV')
 fgbg = cv.createBackgroundSubtractorMOG2(varThreshold=16, detectShadows=False)
 # fgbg = cv.bgsegm.createBackgroundSubtractorGMG(initializationFrames=200, decisionThreshold=0.85)
@@ -19,17 +20,23 @@ while(1):
     # print( "Processing " + str( count_frame ) + "th frame" )
     count_frame = count_frame+1
 
-    fgmask = fgbg.apply( frame )
+    fgmask = fgbg.apply(frame)
 
     if count_frame%30 ==0:
     # print(frame.shape)
-        image_origin= cv.cvtColor( frame, cv.COLOR_BGR2GRAY )
+        image_origin= cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         fgmask = cv.morphologyEx( fgmask, cv.MORPH_OPEN, kernel, iterations=2)
         # fgmask = np.asarray( fgmask == 255, np.uint8 )
-        composite = np.concatenate( (image_origin, fgmask), axis=0 )
+        composite = np.concatenate((image_origin, fgmask), axis=0 )
 
-        cv.imshow('image',composite )
-        k = cv.waitKey(1) & 0xff
+
+        print(count_frame)
+        cv.imshow('image', composite)
+        if count_frame == 510:
+            composite = Image.fromarray( composite )
+            composite.save(str(count_frame) + ".png")
+            k = cv.waitKey(100000) & 0xff
+        k = cv.waitKey(5) & 0xff
         if k == 27:
             break
 cap.release()

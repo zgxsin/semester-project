@@ -7,8 +7,8 @@ We train the model to detect dynamic regions only.
 Open the `inspect_carla_data-new.ipynb` or `inspect_carla_model-new.ipynb` Jupter notebooks. You can use these notebooks to explore the dataset and run through the detection pipelie step by step.
 
 ## Work Pipeline
-1. Collect simulation images from CARLA simulator.
-2. Collect video clips from the real-world environment.
+1. Collect simulation images from CARLA simulator (available upon request).
+2. Collect video clips from the real-world environment (available upon request).
 3. Run samples/mask_extraction/mask_extraction.py to build real-world data (images and instance masks).
 4. Start training (see next step).
 

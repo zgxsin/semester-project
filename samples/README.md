@@ -10,7 +10,7 @@ The directory includes:
 * See the `README.md` included in the `carla` directory.
 
 ## Evaluation (F1 score)
-* Process corresponding images sets in Cityscape dataset.
+* Process corresponding images sets in Cityscape dataset. Processed images are available upon request to `guzhou@ethz.ch`.
 * Use the trained weights in the above step and run `evaluate_model_F1.py` to calculate the F1 score.
 
 ## Inference
